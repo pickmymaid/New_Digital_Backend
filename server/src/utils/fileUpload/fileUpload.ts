@@ -41,7 +41,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import mime from "mime-types";
-import { r2 } from "../../config/r2.client";
+import { spaces } from "../../config/spaces.client";
 
 
 export const uploadimage = async (file: any) => {
@@ -64,9 +64,9 @@ export const uploadimage = async (file: any) => {
   // file.data is available in express-fileupload
   const buffer = file.data;
 
-  await r2.send(
+  await spaces.send(
     new PutObjectCommand({
-      Bucket: process.env.R2_BUCKET!,
+      Bucket: process.env.DO_SPACES_BUCKET!,
       Key: filepath,
       Body: buffer,
       ContentType: mime.lookup(ext) || "application/octet-stream",
