@@ -1,0 +1,12 @@
+public
+node_modules
+dist
+build
+coverage
+logs
+tmp
+.cache
+.git
+.env
+.env.*
+*.log

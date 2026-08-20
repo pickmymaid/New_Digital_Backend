@@ -1,0 +1,130 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build & typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run build
+
+  deploy:
+    name: Deploy to droplet
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          NODE_ENV: production
+          PORT: "8080"
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          COOKIE_KEY: ${{ secrets.COOKIE_KEY }}
+          BASE_URL: ${{ secrets.BASE_URL }}
+          BASE_API_URL: ${{ secrets.BASE_API_URL }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          FB_APP_ID: ${{ secrets.FB_APP_ID }}
+          FB_APP_SECRET: ${{ secrets.FB_APP_SECRET }}
+          APPLE_CLIENT_ID: ${{ secrets.APPLE_CLIENT_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          APPLE_AUTH_KEY_P8_BASE64: ${{ secrets.APPLE_AUTH_KEY_P8_BASE64 }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_EMAIL_PASS: ${{ secrets.ADMIN_EMAIL_PASS }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
+          R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          PG_API_KEY: ${{ secrets.PG_API_KEY }}
+          PG_BASE_URL: ${{ secrets.PG_BASE_URL }}
+          PG_OUTLET_REFERENCE: ${{ secrets.PG_OUTLET_REFERENCE }}
+          PAYMENT_REDIRECT_URL: ${{ secrets.PAYMENT_REDIRECT_URL }}
+          REDIRECT_URL: ${{ secrets.REDIRECT_URL }}
+          COMPANY_TOKEN: ${{ secrets.COMPANY_TOKEN }}
+          COMPANY_SERVICE: ${{ secrets.COMPANY_SERVICE }}
+          SA_EMAIL: ${{ secrets.SA_EMAIL }}
+          NEXTJS_REVALIDATE_SECRET: ${{ secrets.NEXTJS_REVALIDATE_SECRET }}
+          REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          port: ${{ secrets.DROPLET_SSH_PORT }}
+          envs: NODE_ENV,PORT,MONGODB_URI,JWT_SECRET,COOKIE_KEY,BASE_URL,BASE_API_URL,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,FB_APP_ID,FB_APP_SECRET,APPLE_CLIENT_ID,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_AUTH_KEY_P8_BASE64,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,ADMIN_EMAIL,ADMIN_EMAIL_PASS,R2_ACCOUNT_ID,R2_ACCESS_KEY,R2_SECRET_KEY,R2_BUCKET,PG_API_KEY,PG_BASE_URL,PG_OUTLET_REFERENCE,PAYMENT_REDIRECT_URL,REDIRECT_URL,COMPANY_TOKEN,COMPANY_SERVICE,SA_EMAIL,NEXTJS_REVALIDATE_SECRET,REVALIDATE_SECRET
+          script_stop: true
+          script: |
+            set -e
+            cd /root/Pick_Back
+
+            git fetch origin main
+            git reset --hard origin/main
+
+            {
+              echo "NODE_ENV=$NODE_ENV"
+              echo "PORT=$PORT"
+              echo "MONGODB_URI=$MONGODB_URI"
+              echo "JWT_SECRET=$JWT_SECRET"
+              echo "COOKIE_KEY=$COOKIE_KEY"
+              echo "BASE_URL=$BASE_URL"
+              echo "BASE_API_URL=$BASE_API_URL"
+              echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID"
+              echo "GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET"
+              echo "FB_APP_ID=$FB_APP_ID"
+              echo "FB_APP_SECRET=$FB_APP_SECRET"
+              echo "APPLE_CLIENT_ID=$APPLE_CLIENT_ID"
+              echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"
+              echo "APPLE_KEY_ID=$APPLE_KEY_ID"
+              echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"
+              echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"
+              echo "ADMIN_EMAIL=$ADMIN_EMAIL"
+              echo "ADMIN_EMAIL_PASS=$ADMIN_EMAIL_PASS"
+              echo "R2_ACCOUNT_ID=$R2_ACCOUNT_ID"
+              echo "R2_ACCESS_KEY=$R2_ACCESS_KEY"
+              echo "R2_SECRET_KEY=$R2_SECRET_KEY"
+              echo "R2_BUCKET=$R2_BUCKET"
+              echo "PG_API_KEY=$PG_API_KEY"
+              echo "PG_BASE_URL=$PG_BASE_URL"
+              echo "PG_OUTLET_REFERENCE=$PG_OUTLET_REFERENCE"
+              echo "PAYMENT_REDIRECT_URL=$PAYMENT_REDIRECT_URL"
+              echo "REDIRECT_URL=$REDIRECT_URL"
+              echo "COMPANY_TOKEN=$COMPANY_TOKEN"
+              echo "COMPANY_SERVICE=$COMPANY_SERVICE"
+              echo "SA_EMAIL=$SA_EMAIL"
+              echo "NEXTJS_REVALIDATE_SECRET=$NEXTJS_REVALIDATE_SECRET"
+              echo "REVALIDATE_SECRET=$REVALIDATE_SECRET"
+            } > server/.env.prod
+            chmod 600 server/.env.prod
+
+            echo "$APPLE_AUTH_KEY_P8_BASE64" | base64 -d > server/src/config/AuthKey.p8
+            chmod 600 server/src/config/AuthKey.p8
+
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker image prune -f
