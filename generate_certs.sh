@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DOMAIN="backendpickmymaid.site"
+DOMAIN="api.backendpickmymaid.site"
 CERT_DIR="/etc/letsencrypt/live/${DOMAIN}"
+HAPROXY_CERT_DIR="/etc/haproxy/certs"
+HAPROXY_CERT_FILE="${HAPROXY_CERT_DIR}/api-backendpickmymaid-prod.pem"
 
 check_existing_cert() {
   [[ -f "${CERT_DIR}/fullchain.pem" && -f "${CERT_DIR}/privkey.pem" ]]
@@ -15,17 +17,14 @@ print_expiry() {
 }
 
 create_cert() {
-  echo "🔐 No valid certificate found. Creating wildcard certificate for ${DOMAIN} and *.${DOMAIN}"
-  echo "📌 You will now get a TXT record from certbot. Add it to your DNS and continue."
+  echo "🔐 No valid certificate found. Creating certificate for ${DOMAIN}"
 
   sudo certbot certonly \
-    --manual \
-    --preferred-challenges dns \
+    --standalone \
+    --preferred-challenges http \
     --agree-tos \
     --no-eff-email \
     -d "${DOMAIN}" \
-    -d "*.${DOMAIN}" \
-    --manual-public-ip-logging-ok \
     --email "admin@${DOMAIN}"
 
   echo "🎉 Certificate created successfully"
@@ -33,8 +32,15 @@ create_cert() {
 
 renew_if_needed() {
   echo "🔍 Checking if renewal is required..."
-  sudo certbot renew --manual-public-ip-logging-ok || true
+  sudo certbot renew --quiet || true
   echo "⚡ Renewal check done"
+}
+
+combine_for_haproxy() {
+  sudo mkdir -p "${HAPROXY_CERT_DIR}"
+  sudo bash -c "cat '${CERT_DIR}/fullchain.pem' '${CERT_DIR}/privkey.pem' > '${HAPROXY_CERT_FILE}'"
+  sudo chmod 600 "${HAPROXY_CERT_FILE}"
+  echo "📦 Combined cert written to ${HAPROXY_CERT_FILE}"
 }
 
 ################################
@@ -43,10 +49,11 @@ renew_if_needed() {
 
 if ! check_existing_cert; then
   create_cert
-  exit 0
+else
+  echo "📦 Certificate already exists for ${DOMAIN}."
+  print_expiry
+  renew_if_needed
 fi
 
-echo "📦 Certificate already exists for ${DOMAIN}."
-print_expiry
-renew_if_needed
-echo "✔️ Renewed if needed. Done!"
+combine_for_haproxy
+echo "✔️ Done!"
