@@ -1,8 +1,5 @@
 import { Buffer } from "buffer";
-import { sesClient } from "../../config/sesClient";
 import nodemailer from "nodemailer";
-import { Readable } from "nodemailer/lib/xoauth2";
-  
 
 interface MyAttachment {
   filename: string;
@@ -10,11 +7,13 @@ interface MyAttachment {
   content: any;
 }
 
-
-// Nodemailer transport using AWS SES
-const transporter = nodemailer.createTransport(({
-  SES: { ses: sesClient, aws: { SendRawEmailCommand: require("@aws-sdk/client-ses").SendRawEmailCommand } },
-} as any));
+const transporter = nodemailer.createTransport({
+  service: "Gmail",
+  auth: {
+    user: process.env.ADMIN_EMAIL,
+    pass: process.env.ADMIN_EMAIL_PASS
+  }
+});
 
 export const sendSesEmailWithAttachment = async (
   toAddress: string,
@@ -26,7 +25,7 @@ export const sendSesEmailWithAttachment = async (
 ) => {
   try {
     const info = await transporter.sendMail({
-      from: '"Pickmymaid Support Team" <support@pickmymaid.com>',
+      from: `"Pickmymaid Support Team" <${process.env.ADMIN_EMAIL}>`,
       to: toAddress,
       cc,
       subject,

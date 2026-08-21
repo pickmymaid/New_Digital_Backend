@@ -46,7 +46,6 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.967.0",
-    "@aws-sdk/client-ses": "^3.839.0",
     "@types/node-cron": "^3.0.8",
     "@types/passport-facebook": "^3.0.3",
     "axios": "^1.4.0",
