@@ -1,0 +1,23 @@
+# Requires cert-manager installed in the cluster first:
+#   helm repo add jetstack https://charts.jetstack.io
+#   helm install cert-manager jetstack/cert-manager \
+#     --namespace cert-manager --create-namespace --set installCRDs=true
+#
+# This replaces the droplet's certbot + generate_certs.sh — cert-manager
+# requests and auto-renews the cert via the same Let's Encrypt HTTP-01
+# challenge, just driven by the ingress-nginx controller instead of a
+# standalone certbot run.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@pickmymaid.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx

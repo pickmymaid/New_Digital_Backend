@@ -1,0 +1,107 @@
+# Requires the ingress-nginx controller installed in the cluster:
+#   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+#   helm install ingress-nginx ingress-nginx/ingress-nginx \
+#     --namespace ingress-nginx --create-namespace
+# That install provisions a DigitalOcean Load Balancer automatically —
+# point api.backendpickmymaid.site's DNS A record at its external IP
+# (`kubectl get svc -n ingress-nginx` after install).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pickmymaid-api
+  namespace: pickmymaid
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m" # blog/maid file uploads
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.backendpickmymaid.site
+      secretName: pickmymaid-api-tls
+  rules:
+    - host: api.backendpickmymaid.site
+      http:
+        paths:
+          # Backend2 — auth + payment
+          - path: /api/v1/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: backend2
+                port:
+                  number: 8081
+          - path: /api/v2/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: backend2
+                port:
+                  number: 8081
+          - path: /api/v1/payment
+            pathType: Prefix
+            backend:
+              service:
+                name: backend2
+                port:
+                  number: 8081
+          - path: /api/v2/payment
+            pathType: Prefix
+            backend:
+              service:
+                name: backend2
+                port:
+                  number: 8081
+          # Backend1 — admin, maids/jobs, blog, contact, analytics
+          - path: /api/v1/admin
+            pathType: Prefix
+            backend:
+              service:
+                name: backend1
+                port:
+                  number: 8080
+          - path: /api/v1/job
+            pathType: Prefix
+            backend:
+              service:
+                name: backend1
+                port:
+                  number: 8080
+          - path: /api/v1/contact
+            pathType: Prefix
+            backend:
+              service:
+                name: backend1
+                port:
+                  number: 8080
+          - path: /api/v1/blog
+            pathType: Prefix
+            backend:
+              service:
+                name: backend1
+                port:
+                  number: 8080
+          - path: /api/v2/maids
+            pathType: Prefix
+            backend:
+              service:
+                name: backend1
+                port:
+                  number: 8080
+          - path: /api/v1/analytics
+            pathType: Prefix
+            backend:
+              service:
+                name: backend1
+                port:
+                  number: 8080
+          - path: /api/v1/test
+            pathType: Prefix
+            backend:
+              service:
+                name: backend1
+                port:
+                  number: 8080
+          # NOTE: no rule routes to /internal/* on Backend2 — that's
+          # deliberate, see ARCHITECTURE.md. It's only reachable via the
+          # cluster-internal Service DNS name.

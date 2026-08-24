@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend2
+  namespace: pickmymaid
+  labels:
+    app: backend2
+spec:
+  # Fixed at 1 replica: the subscription-expiry cron (node-cron, in-process,
+  # see src/utils/CronJob/Cronjob.js) would otherwise run once per replica
+  # and double-process expiries. Scale past 1 only after moving the cron to
+  # a K8s CronJob (see ARCHITECTURE.md "future hardening").
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend2
+  template:
+    metadata:
+      labels:
+        app: backend2
+    spec:
+      # Decodes the Sign in with Apple .p8 key from the secret into a
+      # shared emptyDir volume before the app container starts. See
+      # src/config/passport.js for the path it reads from.
+      initContainers:
+        - name: decode-apple-key
+          image: alpine:3.19
+          command:
+            - sh
+            - -c
+            - "echo \"$APPLE_AUTH_KEY_P8_BASE64\" | base64 -d > /secrets/AuthKey.p8 && chmod 600 /secrets/AuthKey.p8"
+          env:
+            - name: APPLE_AUTH_KEY_P8_BASE64
+              valueFrom:
+                secretKeyRef:
+                  name: backend2-secret
+                  key: APPLE_AUTH_KEY_P8_BASE64
+          volumeMounts:
+            - name: apple-key
+              mountPath: /secrets
+      containers:
+        - name: backend2
+          image: registry.digitalocean.com/pickmymaid/backend2:latest
+          ports:
+            - containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: shared-config
+            - configMapRef:
+                name: backend2-config
+            - secretRef:
+                name: shared-secret
+            - secretRef:
+                name: backend2-secret
+          volumeMounts:
+            - name: apple-key
+              mountPath: /secrets
+              readOnly: true
+          resources:
+            requests:
+              cpu: 150m
+              memory: 192Mi
+            limits:
+              cpu: 750m
+              memory: 384Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: apple-key
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend2
+  namespace: pickmymaid
+spec:
+  selector:
+    app: backend2
+  ports:
+    - port: 8081
+      targetPort: 8081
+  type: ClusterIP

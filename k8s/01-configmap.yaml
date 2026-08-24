@@ -1,0 +1,39 @@
+# Non-secret configuration. PORT lives per-service (not in shared-config)
+# because Backend1 and Backend2 listen on different ports (8080 / 8081) —
+# putting it in shared-config would make both services fight over the
+# same value.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shared-config
+  namespace: pickmymaid
+data:
+  NODE_ENV: "production"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend1-config
+  namespace: pickmymaid
+data:
+  PORT: "8080"
+  BASE_URL: "https://www.pickmymaid.com"
+  DO_SPACES_REGION: "nyc3"
+  DO_SPACES_BUCKET: "pickmymaid-uploads"
+  # Cluster-internal DNS name of Backend2 (matches the Service name in
+  # backend2.yaml). Used by Backend1's integrations/paymentServiceClient.js
+  # for the one cross-service call (admin verifying a payment).
+  BACKEND2_URL: "http://backend2:8081"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend2-config
+  namespace: pickmymaid
+data:
+  PORT: "8081"
+  BASE_URL: "https://www.pickmymaid.com"
+  BASE_API_URL: "https://api.backendpickmymaid.site"
+  PG_BASE_URL: "https://secure.3gdirectpay.com/API/v6/"
+  PAYMENT_REDIRECT_URL: "https://www.pickmymaid.com/payment/redirect"
+  REDIRECT_URL: "https://www.pickmymaid.com/payment/redirect"

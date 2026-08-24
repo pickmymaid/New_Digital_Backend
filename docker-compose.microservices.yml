@@ -1,0 +1,35 @@
+# Local development stack for the Backend1/Backend2 split. Plain HTTP,
+# ports exposed directly on the host — no nginx/TLS needed for local work.
+# For the production stack (nginx + TLS), see docker-compose.microservices.prod.yml.
+version: "3.9"
+
+services:
+  backend1:
+    build:
+      context: ./Backend1
+    container_name: backend1-dev
+    restart: unless-stopped
+    env_file:
+      - ./Backend1/.env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./Backend1/public:/app/public
+    networks:
+      - pickmymaid-dev
+
+  backend2:
+    build:
+      context: ./Backend2
+    container_name: backend2-dev
+    restart: unless-stopped
+    env_file:
+      - ./Backend2/.env
+    ports:
+      - "8081:8081"
+    networks:
+      - pickmymaid-dev
+
+networks:
+  pickmymaid-dev:
+    driver: bridge

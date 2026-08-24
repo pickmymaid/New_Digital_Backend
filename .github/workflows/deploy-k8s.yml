@@ -1,0 +1,73 @@
+name: Deploy Microservices to DOKS
+
+# Manual only — this never fires on push. The DOKS cluster this targets
+# doesn't exist yet (see k8s/README.md); wiring this to push/schedule
+# triggers before that cluster is provisioned would just fail every run.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build-and-push:
+    name: Build & push images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - dir: Backend1
+            image: backend1
+          - dir: Backend2
+            image: backend2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Log in to DOCR
+        run: doctl registry login --expiry-seconds 1200
+
+      - name: Build
+        run: docker build -t registry.digitalocean.com/pickmymaid/${{ matrix.image }}:${{ github.sha }} -t registry.digitalocean.com/pickmymaid/${{ matrix.image }}:latest ${{ matrix.dir }}
+
+      - name: Push
+        run: |
+          docker push registry.digitalocean.com/pickmymaid/${{ matrix.image }}:${{ github.sha }}
+          docker push registry.digitalocean.com/pickmymaid/${{ matrix.image }}:latest
+
+  deploy:
+    name: Apply manifests & roll out
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Save kubeconfig
+        run: doctl kubernetes cluster kubeconfig save pickmymaid-cluster
+
+      - name: Apply manifests
+        run: |
+          cd k8s
+          kubectl apply -f 00-namespace.yaml
+          kubectl apply -f 01-configmap.yaml
+          # 02-secret.yaml is intentionally NOT applied from CI — secrets
+          # are managed manually per k8s/README.md step 4, not committed
+          # to the repo. Update secrets out-of-band if their values change.
+          kubectl apply -f 03-cluster-issuer.yaml
+          kubectl apply -f backend1.yaml
+          kubectl apply -f backend2.yaml
+          kubectl apply -f 04-hpa.yaml
+          kubectl apply -f ingress.yaml
+
+      - name: Roll out new images
+        run: |
+          kubectl -n pickmymaid rollout restart deployment/backend1
+          kubectl -n pickmymaid rollout restart deployment/backend2
+          kubectl -n pickmymaid rollout status deployment/backend1
+          kubectl -n pickmymaid rollout status deployment/backend2

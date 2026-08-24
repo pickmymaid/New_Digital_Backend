@@ -5,13 +5,12 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# install build deps
-COPY package*.json tsconfig*.json ./
+# install deps
+COPY package*.json ./
 RUN npm ci --production=false
 
-# copy source and build
+# copy source
 COPY . .
-RUN npm run build   # expects a build script that compiles into ./dist
 
 # =======================
 # Development Stage (added)
@@ -37,8 +36,8 @@ RUN npm install -g pm2
 COPY package*.json ./
 RUN npm ci --only=production
 
-# copy built files from builder
-COPY --from=builder /app/dist ./dist
+# copy source
+COPY --from=builder /app/src ./src
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/src/config/AuthKey.p8 ./AuthKey.p8
 

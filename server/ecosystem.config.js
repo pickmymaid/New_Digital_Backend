@@ -2,8 +2,7 @@ module.exports = {
     apps: [
       {
         name: "api-server",
-        // run the compiled JS
-        script: "./dist/server.js",
+        script: "./src/server.js",
         // Cluster mode for 2 CPU machine
         exec_mode: "cluster",
         instances: 2,

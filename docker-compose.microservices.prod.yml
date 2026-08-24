@@ -1,0 +1,58 @@
+# Production stack for the Backend1/Backend2 split, fronted by nginx
+# (TLS termination + path routing — see nginx/nginx.conf). This is a
+# parallel option to the existing docker-compose.prod.yml (which still
+# deploys the original server/ monolith) — not a replacement. Only switch
+# a droplet over to this once you've verified it end-to-end; nothing here
+# is wired into the live deploy pipeline (.github/workflows/deploy.yml)
+# yet.
+version: "3.9"
+
+services:
+  backend1:
+    build:
+      context: ./Backend1
+      target: prod
+    container_name: backend1-prod
+    restart: unless-stopped
+    env_file:
+      - ./Backend1/.env.prod
+    volumes:
+      - ./Backend1/public:/app/public
+    networks:
+      - pickmymaid-prod
+
+  backend2:
+    build:
+      context: ./Backend2
+      target: prod
+    container_name: backend2-prod
+    restart: unless-stopped
+    env_file:
+      - ./Backend2/.env.prod
+    networks:
+      - pickmymaid-prod
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nginx-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/proxy_params.conf:/etc/nginx/proxy_params.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - certbot-webroot:/var/www/certbot
+    depends_on:
+      - backend1
+      - backend2
+    networks:
+      - pickmymaid-prod
+
+networks:
+  pickmymaid-prod:
+    driver: bridge
+
+volumes:
+  certbot-webroot:
