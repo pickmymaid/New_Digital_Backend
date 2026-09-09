@@ -1,8 +1,8 @@
 name: Deploy Microservices to DOKS
 
-# Manual only — this never fires on push. The DOKS cluster this targets
-# doesn't exist yet (see k8s/README.md); wiring this to push/schedule
-# triggers before that cluster is provisioned would just fail every run.
+# Manual only — this never fires on push. Wire this to push/schedule
+# triggers once the deploy flow below has been verified a few times
+# manually (workflow_dispatch, from the Actions tab).
 on:
   workflow_dispatch: {}
 
@@ -56,14 +56,76 @@ jobs:
           cd k8s
           kubectl apply -f 00-namespace.yaml
           kubectl apply -f 01-configmap.yaml
-          # 02-secret.yaml is intentionally NOT applied from CI — secrets
-          # are managed manually per k8s/README.md step 4, not committed
-          # to the repo. Update secrets out-of-band if their values change.
           kubectl apply -f 03-cluster-issuer.yaml
           kubectl apply -f backend1.yaml
           kubectl apply -f backend2.yaml
           kubectl apply -f 04-hpa.yaml
           kubectl apply -f ingress.yaml
+
+      # Secret values come straight from this repo's GitHub Actions secrets
+      # and are piped directly into kubectl — they're never written to a
+      # file in the repo or checked out anywhere. Uses --dry-run=client so
+      # re-running this workflow updates the secrets in place instead of
+      # failing on "already exists".
+      - name: Apply k8s secrets from GitHub secrets
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          COOKIE_KEY: ${{ secrets.COOKIE_KEY }}
+          INTERNAL_SERVICE_TOKEN: ${{ secrets.INTERNAL_SERVICE_TOKEN }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_EMAIL_PASS: ${{ secrets.ADMIN_EMAIL_PASS }}
+          DO_SPACES_ACCESS_KEY: ${{ secrets.DO_SPACES_ACCESS_KEY }}
+          DO_SPACES_SECRET_KEY: ${{ secrets.DO_SPACES_SECRET_KEY }}
+          SA_EMAIL: ${{ secrets.SA_EMAIL }}
+          NEXTJS_REVALIDATE_SECRET: ${{ secrets.NEXTJS_REVALIDATE_SECRET }}
+          REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          FB_APP_ID: ${{ secrets.FB_APP_ID }}
+          FB_APP_SECRET: ${{ secrets.FB_APP_SECRET }}
+          APPLE_CLIENT_ID: ${{ secrets.APPLE_CLIENT_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          APPLE_AUTH_KEY_P8_BASE64: ${{ secrets.APPLE_AUTH_KEY_P8_BASE64 }}
+          PG_API_KEY: ${{ secrets.PG_API_KEY }}
+          PG_OUTLET_REFERENCE: ${{ secrets.PG_OUTLET_REFERENCE }}
+          COMPANY_TOKEN: ${{ secrets.COMPANY_TOKEN }}
+          COMPANY_SERVICE: ${{ secrets.COMPANY_SERVICE }}
+        run: |
+          kubectl create secret generic shared-secret -n pickmymaid \
+            --from-literal=MONGODB_URI="$MONGODB_URI" \
+            --from-literal=JWT_SECRET="$JWT_SECRET" \
+            --from-literal=COOKIE_KEY="$COOKIE_KEY" \
+            --from-literal=INTERNAL_SERVICE_TOKEN="$INTERNAL_SERVICE_TOKEN" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl create secret generic backend1-secret -n pickmymaid \
+            --from-literal=ADMIN_EMAIL="$ADMIN_EMAIL" \
+            --from-literal=ADMIN_EMAIL_PASS="$ADMIN_EMAIL_PASS" \
+            --from-literal=DO_SPACES_ACCESS_KEY="$DO_SPACES_ACCESS_KEY" \
+            --from-literal=DO_SPACES_SECRET_KEY="$DO_SPACES_SECRET_KEY" \
+            --from-literal=SA_EMAIL="$SA_EMAIL" \
+            --from-literal=NEXTJS_REVALIDATE_SECRET="$NEXTJS_REVALIDATE_SECRET" \
+            --from-literal=REVALIDATE_SECRET="$REVALIDATE_SECRET" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl create secret generic backend2-secret -n pickmymaid \
+            --from-literal=ADMIN_EMAIL="$ADMIN_EMAIL" \
+            --from-literal=ADMIN_EMAIL_PASS="$ADMIN_EMAIL_PASS" \
+            --from-literal=GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
+            --from-literal=GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
+            --from-literal=FB_APP_ID="$FB_APP_ID" \
+            --from-literal=FB_APP_SECRET="$FB_APP_SECRET" \
+            --from-literal=APPLE_CLIENT_ID="$APPLE_CLIENT_ID" \
+            --from-literal=APPLE_TEAM_ID="$APPLE_TEAM_ID" \
+            --from-literal=APPLE_KEY_ID="$APPLE_KEY_ID" \
+            --from-literal=APPLE_AUTH_KEY_P8_BASE64="$APPLE_AUTH_KEY_P8_BASE64" \
+            --from-literal=PG_API_KEY="$PG_API_KEY" \
+            --from-literal=PG_OUTLET_REFERENCE="$PG_OUTLET_REFERENCE" \
+            --from-literal=COMPANY_TOKEN="$COMPANY_TOKEN" \
+            --from-literal=COMPANY_SERVICE="$COMPANY_SERVICE" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Roll out new images
         run: |
