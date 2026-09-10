@@ -18,8 +18,8 @@ metadata:
 data:
   PORT: "8080"
   BASE_URL: "https://www.pickmymaid.com"
-  DO_SPACES_REGION: "nyc3"
-  DO_SPACES_BUCKET: "pickmymaid-uploads"
+  DO_SPACES_REGION: "sfo3"
+  DO_SPACES_BUCKET: "pickmymaidbucket"
   # Cluster-internal DNS name of Backend2 (matches the Service name in
   # backend2.yaml). Used by Backend1's integrations/paymentServiceClient.js
   # for the one cross-service call (admin verifying a payment).
