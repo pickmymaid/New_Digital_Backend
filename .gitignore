@@ -1,22 +1,17 @@
 # Node / JS
-server/node_modules/
 client/node_modules/
 admin-panel/node_modules/
 Backend1/node_modules/
 Backend2/node_modules/
-server/.env.*
 client/.env.*
-server/public
-server/src/config/AuthKey.p8
 admin-panel/.env.*
 *.log
 .env
-.env.* 
+.env.*
 
 # Build / output
 client/.next/
 admin-panel/dist/
-server/dist/
 
 # Docker
 *.env
