@@ -77,6 +77,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    # app.js kicks off a real DB connection as soon as it's required (not
+    # awaited, not caught) — without a reachable Mongo here, that connection
+    # attempt eventually rejects as an unhandled rejection well after the
+    # test itself finished, which node:test correctly treats as a failure.
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -86,6 +95,8 @@ jobs:
         working-directory: ${{ matrix.dir }}
       - run: npm test
         working-directory: ${{ matrix.dir }}
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/ci_smoke_test
 
   build-and-push:
     name: "Build & Push — ${{ matrix.name }}"
