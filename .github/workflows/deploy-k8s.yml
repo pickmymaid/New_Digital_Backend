@@ -48,6 +48,7 @@ jobs:
               - 'Backend2/**'
               - 'k8s/backend2.yaml'
               - 'k8s/01-configmap.yaml'
+              - 'k8s/05-backend2-cronjob.yaml'
 
       - name: Build backend matrix
         id: compute
@@ -157,6 +158,10 @@ jobs:
       - name: Apply HPA (Backend1 only)
         if: matrix.key == 'backend1'
         run: kubectl apply -f k8s/04-hpa.yaml
+
+      - name: Apply subscription-expiry CronJob (Backend2 only)
+        if: matrix.key == 'backend2'
+        run: kubectl apply -f k8s/05-backend2-cronjob.yaml
 
       # Secret values come straight from this repo's GitHub Actions secrets
       # and are piped directly into kubectl — they're never written to a

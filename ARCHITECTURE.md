@@ -103,44 +103,31 @@ compose/cluster-internal service name.
 
 1. **Kubernetes on DigitalOcean (DOKS)** — `k8s/`. Deployments, Services,
    Ingress, HPA (Backend1 only — see below), cert-manager for TLS. See
-   `k8s/README.md` for the apply order. Nothing has been provisioned yet.
+   `k8s/README.md` for the apply order. **This is what's live in
+   production** — `api.backendpickmymaid.site` DNS points here, and the
+   old droplet + `server/` monolith have been decommissioned and removed
+   from this repo.
 2. **Docker Compose + nginx** — `docker-compose.microservices.yml` (dev,
    plain HTTP, ports exposed directly) and
    `docker-compose.microservices.prod.yml` (nginx TLS termination, see
-   `nginx/nginx.conf`). Named `.microservices.` deliberately, **not**
-   `docker-compose.prod.yml` — that file already exists and is what
-   currently deploys the live `server/` monolith to the droplet via
-   `.github/workflows/deploy.yml`. Renaming/overwriting it would break
-   the live pipeline on the next push, so this stack was kept separate on
-   purpose. Only rename/replace it yourself once you've decided to cut
-   over for real.
+   `nginx/nginx.conf`). Untested alternative to the DOKS deploy above;
+   not currently used in production.
 3. **PM2 directly on a VM, no Docker** — `ecosystem.config.cjs` at the
    repo root. `pm2 start ecosystem.config.cjs --env production`.
 
-Backend2 is capped at 1 instance/replica in every option above — it runs
-the subscription-expiry cron in-process
-(`Backend2/src/utils/CronJob/Cronjob.js`), which would double-process
-expiries if run more than once concurrently. Move that cron to a
-scheduled job (k8s CronJob, or a separate pm2 process) before scaling
-Backend2 past 1.
+The subscription-expiry job (`Backend2/src/utils/CronJob/Cronjob.js`)
+used to run in-process on a `node-cron` schedule, which capped Backend2 at
+1 replica (it would double-process expiries if run concurrently). On the
+DOKS deploy, this now runs as a separate `k8s/05-backend2-cronjob.yaml`
+CronJob that calls `POST /internal/expire-subscriptions` once, cluster-
+wide, on schedule — so Backend2 runs 2 replicas there. **The PM2 and
+Docker Compose options don't have an equivalent scheduled job yet** — if
+you deploy via either of those instead, either restore the in-process
+cron there or run `expireSubscriptions()` from a separate scheduled
+process, and keep Backend2 at 1 instance until you do.
 
 ## What's NOT done here
 
-- **Nothing has been provisioned on DigitalOcean.** No DOKS cluster, no
-  container registry, no new load balancer.
-- **`server/` (the monolith) is untouched** and is still what's live in
-  production on the droplet. This is a parallel, not-yet-deployed
-  alternative — `docker-compose.prod.yml` and
-  `.github/workflows/deploy.yml` still point at `server/`, unmodified.
-- Local dependency install / real HTTP boot-testing for Backend1/Backend2
-  hasn't been completed in this session (it was interrupted mid-way). The
-  code has been checked for syntax validity and cross-file reference
-  completeness (every `require()` resolves to a real file, confirmed
-  after every restructure in this conversation), but not yet exercised
-  with real HTTP requests. Worth doing before any real deploy — see
-  `k8s/README.md` step 6 for the same kind of verification the JS
-  conversion in this session used on the monolith.
 - **Future hardening ideas, not built now**: mTLS/service mesh instead of
-  the shared-secret internal auth, per-service database split, a K8s
-  CronJob instead of Backend2's in-process cron (unlocks scaling Backend2
-  past 1 replica), centralized logging/tracing.
+  the shared-secret internal auth, per-service database split,
+  centralized logging/tracing.

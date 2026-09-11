@@ -1,0 +1,37 @@
+# Runs the subscription-expiry job that used to run in-process inside
+# Backend2 (node-cron, see git history of src/utils/CronJob/Cronjob.js).
+# Moved here so Backend2 can run more than 1 replica without double-firing
+# the job — it now just calls the internal endpoint once, cluster-wide,
+# on schedule.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backend2-expire-subscriptions
+  namespace: pickmymaid
+spec:
+  schedule: "0 0 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: expire-subscriptions
+              image: curlimages/curl:8.10.1
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  curl -sf -X POST "http://backend2:8081/internal/expire-subscriptions" \
+                    -H "x-internal-token: $INTERNAL_SERVICE_TOKEN"
+              env:
+                - name: INTERNAL_SERVICE_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: shared-secret
+                      key: INTERNAL_SERVICE_TOKEN

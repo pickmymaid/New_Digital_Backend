@@ -15,7 +15,6 @@ const passport = require('passport');
 
 const { connectDatabase } = require('./config/databaseConnection');
 require('./config/passport'); // registers Google/Facebook/Apple/Local strategies (auth) + serialize/deserialize (shared by payment routes too)
-const { subscriptionCron } = require('./utils/CronJob/Cronjob');
 const { authRoutes, authRoutesV2, paymentRoutes, paymentV2Routes, internalRoutes } = require('./routes');
 
 const app = express();
@@ -56,7 +55,6 @@ app.use(cors({
 }));
 
 connectDatabase();
-const cronTask = subscriptionCron();
 
 app.get('/', (req, res) => res.send('Pickmymaid Backend2 (auth + payment)'));
 app.get('/health', (req, res) => res.status(200).send({ status: 'ok', service: 'backend2-auth-payment' }));
@@ -69,4 +67,4 @@ app.use('/api/v2/payment', paymentV2Routes);
 // (currently just Backend1's admin "verify payment" action).
 app.use('/internal', internalRoutes);
 
-module.exports = { app, cronTask };
+module.exports = { app };

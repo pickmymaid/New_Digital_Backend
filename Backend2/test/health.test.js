@@ -24,22 +24,18 @@ process.env.APPLE_AUTH_KEY_PATH = process.env.APPLE_AUTH_KEY_PATH || '/tmp/ci-du
 
 let server;
 let baseUrl;
-let cronTask;
 
 before(async () => {
   const app_ = require('../src/app');
   server = http.createServer(app_.app);
-  cronTask = app_.cronTask;
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
 
 after(async () => {
   await new Promise((resolve) => server.close(resolve));
-  // app.js kicks off a DB connection and a persistent node-cron timer
-  // on require() — both keep the event loop alive, so stop/close them
-  // or `node --test` never exits.
-  cronTask?.stop();
+  // app.js kicks off a DB connection on require() that keeps the event
+  // loop alive, so disconnect it or `node --test` never exits.
   await mongoose.disconnect().catch(() => {});
 });
 

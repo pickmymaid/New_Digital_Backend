@@ -6,11 +6,7 @@ metadata:
   labels:
     app: backend2
 spec:
-  # Fixed at 1 replica: the subscription-expiry cron (node-cron, in-process,
-  # see src/utils/CronJob/Cronjob.js) would otherwise run once per replica
-  # and double-process expiries. Scale past 1 only after moving the cron to
-  # a K8s CronJob (see ARCHITECTURE.md "future hardening").
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: backend2
