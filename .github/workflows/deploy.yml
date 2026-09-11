@@ -1,8 +1,9 @@
 name: Deploy to Production
 
+# Legacy droplet deploy from before the Backend1/Backend2 split — live
+# traffic now runs on DOKS via deploy-k8s.yml. Manual-only so it doesn't
+# keep firing (and touching the old droplet) on every push to main.
 on:
-  push:
-    branches: [main]
   workflow_dispatch: {}
 
 concurrency:
