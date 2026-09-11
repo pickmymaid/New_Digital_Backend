@@ -1,22 +1,100 @@
 name: Deploy Microservices to DOKS
 
-# Manual only — this never fires on push. Wire this to push/schedule
-# triggers once the deploy flow below has been verified a few times
-# manually (workflow_dispatch, from the Actions tab).
+# Runs on every push to main that touches a backend or its k8s manifests,
+# and can also be run manually from the Actions tab. "Detect changed
+# backends" builds a matrix containing only the backend(s) that actually
+# changed, so Test / Build & Push / Deploy each show up as one named job
+# per affected backend (e.g. "Test — Backend1") instead of running (or
+# rebuilding/redeploying) an untouched service.
 on:
-  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - 'Backend1/**'
+      - 'Backend2/**'
+      - 'k8s/**'
+      - '.github/workflows/deploy-k8s.yml'
+  workflow_dispatch:
+    inputs:
+      force_all:
+        description: 'Test, build and deploy both backends regardless of what changed'
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-k8s-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  build-and-push:
-    name: Build & push images
+  detect-changes:
+    name: Detect changed backends
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.compute.outputs.matrix }}
+      any: ${{ steps.compute.outputs.any }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend1:
+              - 'Backend1/**'
+              - 'k8s/backend1.yaml'
+              - 'k8s/01-configmap.yaml'
+              - 'k8s/04-hpa.yaml'
+            backend2:
+              - 'Backend2/**'
+              - 'k8s/backend2.yaml'
+              - 'k8s/01-configmap.yaml'
+
+      - name: Build backend matrix
+        id: compute
+        env:
+          BACKEND1_CHANGED: ${{ steps.filter.outputs.backend1 }}
+          BACKEND2_CHANGED: ${{ steps.filter.outputs.backend2 }}
+          FORCE_ALL: ${{ github.event_name == 'workflow_dispatch' && inputs.force_all }}
+        run: |
+          node -e "
+            const include = [];
+            const force = process.env.FORCE_ALL === 'true';
+            if (force || process.env.BACKEND1_CHANGED === 'true') {
+              include.push({key:'backend1',name:'Backend1',dir:'Backend1',image:'backend1',manifest:'k8s/backend1.yaml',deployment:'backend1'});
+            }
+            if (force || process.env.BACKEND2_CHANGED === 'true') {
+              include.push({key:'backend2',name:'Backend2',dir:'Backend2',image:'backend2',manifest:'k8s/backend2.yaml',deployment:'backend2'});
+            }
+            console.log('matrix=' + JSON.stringify({include}));
+            console.log('any=' + (include.length > 0));
+          " >> "$GITHUB_OUTPUT"
+
+  test:
+    name: "Test — ${{ matrix.name }}"
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any == 'true'
     runs-on: ubuntu-latest
     strategy:
-      matrix:
-        include:
-          - dir: Backend1
-            image: backend1
-          - dir: Backend2
-            image: backend2
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+        working-directory: ${{ matrix.dir }}
+      - run: npm test
+        working-directory: ${{ matrix.dir }}
+
+  build-and-push:
+    name: "Build & Push — ${{ matrix.name }}"
+    needs: [detect-changes, test]
+    if: needs.detect-changes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,9 +115,13 @@ jobs:
           docker push registry.digitalocean.com/pickmymaid/${{ matrix.image }}:latest
 
   deploy:
-    name: Apply manifests & roll out
-    needs: build-and-push
+    name: "Deploy — ${{ matrix.name }}"
+    needs: [detect-changes, build-and-push]
+    if: needs.detect-changes.outputs.any == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -51,28 +133,42 @@ jobs:
       - name: Save kubeconfig
         run: doctl kubernetes cluster kubeconfig save pickmymaid-cluster
 
-      - name: Apply manifests
+      - name: Apply cluster-wide manifests
         run: |
-          cd k8s
-          kubectl apply -f 00-namespace.yaml
-          kubectl apply -f 01-configmap.yaml
-          kubectl apply -f 03-cluster-issuer.yaml
-          kubectl apply -f backend1.yaml
-          kubectl apply -f backend2.yaml
-          kubectl apply -f 04-hpa.yaml
-          kubectl apply -f ingress.yaml
+          kubectl apply -f k8s/00-namespace.yaml
+          kubectl apply -f k8s/01-configmap.yaml
+          kubectl apply -f k8s/03-cluster-issuer.yaml
+          kubectl apply -f k8s/ingress.yaml
+
+      - name: Apply this backend's Deployment/Service
+        run: kubectl apply -f ${{ matrix.manifest }}
+
+      - name: Apply HPA (Backend1 only)
+        if: matrix.key == 'backend1'
+        run: kubectl apply -f k8s/04-hpa.yaml
 
       # Secret values come straight from this repo's GitHub Actions secrets
       # and are piped directly into kubectl — they're never written to a
       # file in the repo or checked out anywhere. Uses --dry-run=client so
       # re-running this workflow updates the secrets in place instead of
       # failing on "already exists".
-      - name: Apply k8s secrets from GitHub secrets
+      - name: Apply shared secret
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           COOKIE_KEY: ${{ secrets.COOKIE_KEY }}
           INTERNAL_SERVICE_TOKEN: ${{ secrets.INTERNAL_SERVICE_TOKEN }}
+        run: |
+          kubectl create secret generic shared-secret -n pickmymaid \
+            --from-literal=MONGODB_URI="$MONGODB_URI" \
+            --from-literal=JWT_SECRET="$JWT_SECRET" \
+            --from-literal=COOKIE_KEY="$COOKIE_KEY" \
+            --from-literal=INTERNAL_SERVICE_TOKEN="$INTERNAL_SERVICE_TOKEN" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply backend1 secret
+        if: matrix.key == 'backend1'
+        env:
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
           ADMIN_EMAIL_PASS: ${{ secrets.ADMIN_EMAIL_PASS }}
           DO_SPACES_ACCESS_KEY: ${{ secrets.DO_SPACES_ACCESS_KEY }}
@@ -80,6 +176,22 @@ jobs:
           SA_EMAIL: ${{ secrets.SA_EMAIL }}
           NEXTJS_REVALIDATE_SECRET: ${{ secrets.NEXTJS_REVALIDATE_SECRET }}
           REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+        run: |
+          kubectl create secret generic backend1-secret -n pickmymaid \
+            --from-literal=ADMIN_EMAIL="$ADMIN_EMAIL" \
+            --from-literal=ADMIN_EMAIL_PASS="$ADMIN_EMAIL_PASS" \
+            --from-literal=DO_SPACES_ACCESS_KEY="$DO_SPACES_ACCESS_KEY" \
+            --from-literal=DO_SPACES_SECRET_KEY="$DO_SPACES_SECRET_KEY" \
+            --from-literal=SA_EMAIL="$SA_EMAIL" \
+            --from-literal=NEXTJS_REVALIDATE_SECRET="$NEXTJS_REVALIDATE_SECRET" \
+            --from-literal=REVALIDATE_SECRET="$REVALIDATE_SECRET" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply backend2 secret
+        if: matrix.key == 'backend2'
+        env:
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_EMAIL_PASS: ${{ secrets.ADMIN_EMAIL_PASS }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           FB_APP_ID: ${{ secrets.FB_APP_ID }}
@@ -93,23 +205,6 @@ jobs:
           COMPANY_TOKEN: ${{ secrets.COMPANY_TOKEN }}
           COMPANY_SERVICE: ${{ secrets.COMPANY_SERVICE }}
         run: |
-          kubectl create secret generic shared-secret -n pickmymaid \
-            --from-literal=MONGODB_URI="$MONGODB_URI" \
-            --from-literal=JWT_SECRET="$JWT_SECRET" \
-            --from-literal=COOKIE_KEY="$COOKIE_KEY" \
-            --from-literal=INTERNAL_SERVICE_TOKEN="$INTERNAL_SERVICE_TOKEN" \
-            --dry-run=client -o yaml | kubectl apply -f -
-
-          kubectl create secret generic backend1-secret -n pickmymaid \
-            --from-literal=ADMIN_EMAIL="$ADMIN_EMAIL" \
-            --from-literal=ADMIN_EMAIL_PASS="$ADMIN_EMAIL_PASS" \
-            --from-literal=DO_SPACES_ACCESS_KEY="$DO_SPACES_ACCESS_KEY" \
-            --from-literal=DO_SPACES_SECRET_KEY="$DO_SPACES_SECRET_KEY" \
-            --from-literal=SA_EMAIL="$SA_EMAIL" \
-            --from-literal=NEXTJS_REVALIDATE_SECRET="$NEXTJS_REVALIDATE_SECRET" \
-            --from-literal=REVALIDATE_SECRET="$REVALIDATE_SECRET" \
-            --dry-run=client -o yaml | kubectl apply -f -
-
           kubectl create secret generic backend2-secret -n pickmymaid \
             --from-literal=ADMIN_EMAIL="$ADMIN_EMAIL" \
             --from-literal=ADMIN_EMAIL_PASS="$ADMIN_EMAIL_PASS" \
@@ -127,9 +222,7 @@ jobs:
             --from-literal=COMPANY_SERVICE="$COMPANY_SERVICE" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Roll out new images
+      - name: Roll out new image
         run: |
-          kubectl -n pickmymaid rollout restart deployment/backend1
-          kubectl -n pickmymaid rollout restart deployment/backend2
-          kubectl -n pickmymaid rollout status deployment/backend1
-          kubectl -n pickmymaid rollout status deployment/backend2
+          kubectl -n pickmymaid rollout restart deployment/${{ matrix.deployment }}
+          kubectl -n pickmymaid rollout status deployment/${{ matrix.deployment }}

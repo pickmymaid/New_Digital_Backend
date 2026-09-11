@@ -4,7 +4,7 @@ const { paymentModel } = require('../../models/payment/payment.model');
 
 const subscriptionCron = ()=>{
 
-    cron.schedule('0 0 * * *', async () => {
+    return cron.schedule('0 0 * * *', async () => {
         try {
             console.log("Started cron")
           // Find subscriptions that are expired

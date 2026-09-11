@@ -56,7 +56,7 @@ app.use(cors({
 }));
 
 connectDatabase();
-subscriptionCron();
+const cronTask = subscriptionCron();
 
 app.get('/', (req, res) => res.send('Pickmymaid Backend2 (auth + payment)'));
 app.get('/health', (req, res) => res.status(200).send({ status: 'ok', service: 'backend2-auth-payment' }));
@@ -69,4 +69,4 @@ app.use('/api/v2/payment', paymentV2Routes);
 // (currently just Backend1's admin "verify payment" action).
 app.use('/internal', internalRoutes);
 
-module.exports = { app };
+module.exports = { app, cronTask };
