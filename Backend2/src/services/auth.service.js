@@ -144,7 +144,15 @@ const customerForgetPasswordService = (email) => {
           const token = await generateJWT({ email }, '600000')
           await updateCustomerPasswordToken(email, token);
 
-          sendSesEmailWithAttachment(email, 'Reset Your Pickmymaid Password', forgetPasswordTemplate(user.first_name,`https://www.pickmymaid.com/reset-password/${base64url.encode(token)}`), '', [])
+          try {
+            await sendSesEmailWithAttachment(email, 'Reset Your Pickmymaid Password', forgetPasswordTemplate(user.first_name,`https://www.pickmymaid.com/reset-password/${base64url.encode(token)}`), '', [])
+          } catch (mailError) {
+            console.error('Failed to send reset password email:', mailError);
+            return reject({
+              message: messages.error.MAIL_NOT_SENT
+            })
+          }
+
           return resolve({
             message: 'Reset link sent to email'
           })

@@ -7,6 +7,7 @@ module.exports = {
     INTERNAL_SERVER_ERROR: 'Internal server error, Please try again!',
     UNAUTHORIZED: 'Unauthorized attempt!',
     INVALID_ACCESS_TOKEN: 'Invalid access token',
+    MAIL_NOT_SENT: 'Mail not sent, please try again!',
   },
   success: {
     ACCOUNT_CREATED: 'Account created successfully!',
