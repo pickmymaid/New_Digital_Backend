@@ -204,15 +204,19 @@ router.get('/facebook/redirect', passport.authenticate('facebook', {
 router.post('/local',(req,res,next) => {
     return passport.authenticate('local',(err, user, info) => {
         if(err){
-            responseHandler(res, 'INTERNAL_SERVER_ERROR', null, {message: info?.message || 'Something went wrong!'})
-        }else if(!user){
-            responseHandler(res, 'UNAUTHORIZED',null, info)
-        }else{
-            req.logIn(user, (err) => {
-                if(err) responseHandler(res, 'INTERNAL_SERVER_ERROR', null, {message: 'Something went wrong!'})
-                responseHandler(res, 'OK', user, {message: "Logged in successfully!", redirect: req.query?.redirect})
-            })
+            logErrorWithSource(err, {error_body: {email: req.body?.email}})
+            return responseHandler(res, 'INTERNAL_SERVER_ERROR', null, {message: 'Something went wrong, please try again!'})
         }
+        if(!user){
+            return responseHandler(res, 'UNAUTHORIZED',null, info)
+        }
+        req.logIn(user, (loginErr) => {
+            if(loginErr){
+                logErrorWithSource(loginErr, {error_user: user})
+                return responseHandler(res, 'INTERNAL_SERVER_ERROR', null, {message: 'Something went wrong, please try again!'})
+            }
+            return responseHandler(res, 'OK', user, {message: "Logged in successfully!", redirect: req.query?.redirect})
+        })
     })(req,res,next)
 })
 
@@ -298,12 +302,12 @@ router.get('/login/success', async (req,res) => {
 router.get("/logout", (req,res) => {
     return req.logOut((err) => {
         if(err){
-            return responseHandler(res,'INTERNAL_SERVER_ERROR', {
-                message: "Something went wrong, Please try again!",
-                err: err
+            logErrorWithSource(err, {error_user: req.user})
+            return responseHandler(res,'INTERNAL_SERVER_ERROR', null, {
+                message: "Something went wrong, please try again!"
             })
         }
-        return responseHandler(res,'OK',{message: "Successfully logged out!"})
+        return responseHandler(res,'OK', null, {message: "Successfully logged out!"})
     })
 })
 

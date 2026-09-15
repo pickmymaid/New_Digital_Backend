@@ -6,12 +6,16 @@ const CustomerRegisterSchema = yup.object({
   first_name: yup.string().min(3, responseMessages.min('First Name', 3)).required(responseMessages.required('First Name')),
   last_name: yup.string().min(2, responseMessages.min('Last Name', 2)),
   email: yup.string().matches(regularExpressions.isEmail, responseMessages.validity('Email address')).required(responseMessages.required('Email')),
-  password: yup.string().min(4, responseMessages.min('Password', 4)).max(16, responseMessages.max('Password', 16)).required(responseMessages.required('Password'))
+  password: yup.string().min(6, responseMessages.min('Password', 6)).max(16, responseMessages.max('Password', 16)).required(responseMessages.required('Password'))
 })
 
 const CustomerLoginSchema = yup.object({
-  email: yup.string().matches(regularExpressions.isEmail, 'User does not exist!').required(responseMessages.required('Email')),
-  password: yup.string().min(6, 'Incorrect password').max(16, 'Incorrect password').required(responseMessages.required('Password')),
+  email: yup.string().matches(regularExpressions.isEmail, responseMessages.validity('Email address')).required(responseMessages.required('Email')),
+  // No min/max here: login only checks presence. Length rules belong to
+  // registration/reset; enforcing them here rejects any account created
+  // before a policy change with a misleading "Incorrect password" message
+  // instead of the real bcrypt comparison result.
+  password: yup.string().required(responseMessages.required('Password')),
 })
 
 const CustomerForgetPasswordSchema = yup.object({
@@ -34,8 +38,8 @@ const AdminRegisterSchema = yup.object({
 
 
 const AdminLoginScheme = yup.object({
-  email: yup.string().matches(regularExpressions.isEmail, 'User not found').required(responseMessages.required('Email')),
-  password: yup.string().min(6, 'Invalid password').max(16, 'Invalid Password').required(responseMessages.required('Password')),
+  email: yup.string().matches(regularExpressions.isEmail, responseMessages.validity('Email address')).required(responseMessages.required('Email')),
+  password: yup.string().required(responseMessages.required('Password')),
 })
 
 module.exports = {

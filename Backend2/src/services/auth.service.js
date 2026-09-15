@@ -30,7 +30,11 @@ const createCustomerService = (user) => {
     try {
       const isUserAvailable = await getCustomerWithEmail(user.email);
       if (isUserAvailable) {
-        return reject(messages.error.USER_ALREADY_EXIST)
+        return reject({
+          errorKey: 'email',
+          status: 'CONFLICT',
+          message: messages.error.USER_ALREADY_EXIST
+        })
       }
       user.password = await passwordToHash(user.password);
       const userId = createUserID(user.first_name);
@@ -54,7 +58,10 @@ const createCustomerService = (user) => {
         }
       });
     } catch (error) {
-      return reject(error.message)
+      return reject({
+        status: 'INTERNAL_SERVER_ERROR',
+        message: error.message
+      })
     }
   })
 }
@@ -95,17 +102,20 @@ const customerLoginService = (credential) => {
         } else {
           return reject({
             errorKey: 'password',
+            status: 'UNAUTHORIZED',
             message: messages.error.WRONG_PASSWORD
           })
         }
       } else {
         return reject({
           errorKey: 'email',
+          status: 'NOT_FOUND',
           message: messages.error.USER_NOT_FOUND
         })
       }
     } catch (error) {
       return reject({
+        status: 'INTERNAL_SERVER_ERROR',
         message: error.message
       })
     }
@@ -149,6 +159,7 @@ const customerForgetPasswordService = (email) => {
           } catch (mailError) {
             console.error('Failed to send reset password email:', mailError);
             return reject({
+              status: 'INTERNAL_SERVER_ERROR',
               message: messages.error.MAIL_NOT_SENT
             })
           }
@@ -160,11 +171,13 @@ const customerForgetPasswordService = (email) => {
       } else {
         return reject({
           errorKey: 'email',
+          status: 'NOT_FOUND',
           message: messages.error.USER_NOT_FOUND
         })
       }
     } catch (error) {
       reject({
+        status: 'INTERNAL_SERVER_ERROR',
         message: messages.error.INTERNAL_SERVER_ERROR
       })
     }
@@ -202,11 +215,13 @@ const customerResetPasswordService = (password, token) => {
             })
           } else {
             return reject({
+              status: 'UNAUTHORIZED',
               message: messages.error.UNAUTHORIZED
             })
           }
         } else {
           return reject({
+            status: 'NOT_FOUND',
             message: messages.error.USER_NOT_FOUND
           })
         }
@@ -214,11 +229,13 @@ const customerResetPasswordService = (password, token) => {
         console.log({ error });
 
         return reject({
+          status: 'UNAUTHORIZED',
           message: 'Password Reset link expired!'
         })
       });
     } catch (error) {
       return reject({
+        status: 'INTERNAL_SERVER_ERROR',
         message: messages.error.INTERNAL_SERVER_ERROR
       })
     }
@@ -270,6 +287,7 @@ const adminSignupService = (body) => {
       }
     } catch (error) {
       return reject({
+        status: 'INTERNAL_SERVER_ERROR',
         message: messages.error.INTERNAL_SERVER_ERROR
       });
     }
@@ -312,16 +330,19 @@ const adminLoginService = (body) => {
           })
         } else {
           reject({
+            status: 'UNAUTHORIZED',
             message: messages.error.WRONG_PASSWORD
           })
         }
       } else {
         reject({
+          status: 'NOT_FOUND',
           message: messages.error.USER_NOT_FOUND
         })
       }
     } catch (error) {
       reject({
+        status: 'INTERNAL_SERVER_ERROR',
         message: error.message
       })
     }
@@ -344,6 +365,7 @@ const adminLogoutService = (user_id) => {
       console.log({ error });
 
       reject({
+        status: 'INTERNAL_SERVER_ERROR',
         message: messages.error.INTERNAL_SERVER_ERROR
       })
     }

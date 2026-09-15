@@ -125,7 +125,7 @@ passport.use(new LocalStrategy( { usernameField: 'email', passwordField: 'passwo
         }
     }catch(error){
         logger.error(error?.message || error , {meta: {body: email}})
-        return done(true, error)
+        return done(error)
     }
 }))
 

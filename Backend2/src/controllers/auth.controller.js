@@ -22,12 +22,12 @@ const createCustomerController = (req, res) => {
   createCustomerService(user).then((data) => {
     req.logIn(data.user,(err) => {
       if(err){
-        responseHandler(res, 'INTERNAL_SERVER_ERROR', null, { err })
+        return responseHandler(res, 'INTERNAL_SERVER_ERROR', null, { message: 'Something went wrong, please try again!' })
       }
-      responseHandler(res, 'CREATED', data.user, { message: data.message, redirection: "pricing" })
+      return responseHandler(res, 'CREATED', data.user, { message: data.message, redirection: "pricing" })
     })
-  }).catch(message => {
-    responseHandler(res, 'BAD_REQUEST', null, { message })
+  }).catch(error => {
+    responseHandler(res, error?.status || 'INTERNAL_SERVER_ERROR', null, { message: error?.message, errorKey: error?.errorKey })
   })
 }
 
@@ -48,7 +48,7 @@ const customerLoginController = (req, res) => {
   customerLoginService(credential).then((data) => {
     responseHandler(res, 'OK', data.otherData , { message: data.message })
   }).catch(error => {
-    responseHandler(res, 'INTERNAL_SERVER_ERROR', null, error)
+    responseHandler(res, error?.status || 'INTERNAL_SERVER_ERROR', null, { message: error?.message, errorKey: error?.errorKey })
   })
 }
 
@@ -66,7 +66,7 @@ const customerForgetPasswordController = (req, res) => {
   customerForgetPasswordService(body.email).then((data) => {
     responseHandler(res, 'CREATED', null, data)
   }).catch((error) => {
-    responseHandler(res, 'INTERNAL_SERVER_ERROR', null, error)
+    responseHandler(res, error?.status || 'INTERNAL_SERVER_ERROR', null, { message: error?.message, errorKey: error?.errorKey })
   })
 }
 
@@ -95,7 +95,7 @@ const customerResetPasswordController = (req, res) => {
   customerResetPasswordService(password, token).then((data) => {
     responseHandler(res, 'OK', null, data)
   }).catch((error) => {
-    responseHandler(res, 'UNAUTHORIZED', null, error)
+    responseHandler(res, error?.status || 'INTERNAL_SERVER_ERROR', null, { message: error?.message, errorKey: error?.errorKey })
   })
 }
 
@@ -117,14 +117,14 @@ const adminSignupController = (req, res) => {
   const body = req.body;
   const { password, confirm_password } = body;
   if (confirm_password !== password) {
-    return responseHandler(res, 'BAD_REQUEST', { message: 'Password and confirm password are different', errorKey: 'confirm_password' })
+    return responseHandler(res, 'BAD_REQUEST', null, { message: 'Password and confirm password are different', errorKey: 'confirm_password' })
   }
   delete body.confirm_password;
 
   adminSignupService(body).then((data) => {
     responseHandler(res, 'CREATED', { userDetails: data.data }, { message: data.message })
   }).catch((error) => {
-    responseHandler(res, 'BAD_REQUEST', null, error)
+    responseHandler(res, error?.status || 'INTERNAL_SERVER_ERROR', null, { message: error?.message, errorKey: error?.errorKey })
   })
 }
 
@@ -143,7 +143,7 @@ const adminLoginController = (req, res) => {
   adminLoginService(body).then((data) => {
     responseHandler(res, 'OK', { token: data.token }, { message: data.message })
   }).catch((error) => {
-    responseHandler(res, 'INTERNAL_SERVER_ERROR', null, error)
+    responseHandler(res, error?.status || 'INTERNAL_SERVER_ERROR', null, { message: error?.message, errorKey: error?.errorKey })
   })
 }
 
@@ -153,7 +153,7 @@ const adminLogoutController = async (req, res) => {
   adminLogoutService(decodedToken.user_id).then((data) => {
     responseHandler(res, 'OK', null, data)
   }).catch((error) => {
-    responseHandler(res, 'INTERNAL_SERVER_ERROR', null, error)
+    responseHandler(res, error?.status || 'INTERNAL_SERVER_ERROR', null, { message: error?.message, errorKey: error?.errorKey })
   })
 }
 
