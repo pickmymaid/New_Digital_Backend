@@ -1,7 +1,8 @@
 
 module.exports = {
   error: {
-    USER_ALREADY_EXIST: 'User already exist. Please login',
+    EMAIL_ALREADY_EXIST: 'Email already exists. Please login',
+    PHONE_ALREADY_EXIST: 'Phone number already exists. Please login',
     USER_NOT_FOUND: 'User does not exist',
     WRONG_PASSWORD: "Incorrect password!",
     INTERNAL_SERVER_ERROR: 'Internal server error, Please try again!',

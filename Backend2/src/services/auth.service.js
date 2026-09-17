@@ -26,7 +26,7 @@ const OTP_VALIDITY_MS = 10 * 60 * 1000;
  * @param {object} user - The information submitted on the registration form (name, email,
  * password, phone, etc).
  * @returns A Promise that resolves with a message once the OTP has been emailed, or rejects with
- * an error (`USER_ALREADY_EXIST` for a taken email/phone, or a mail/server failure).
+ * an error (`EMAIL_ALREADY_EXIST`/`PHONE_ALREADY_EXIST` for a taken email/phone, or a mail/server failure).
  */
 const createCustomerService = (user) => {
   return new Promise(async (resolve, reject) => {
@@ -36,7 +36,7 @@ const createCustomerService = (user) => {
         return reject({
           errorKey: 'email',
           status: 'CONFLICT',
-          message: messages.error.USER_ALREADY_EXIST
+          message: messages.error.EMAIL_ALREADY_EXIST
         })
       }
       if (user.phone) {
@@ -45,7 +45,7 @@ const createCustomerService = (user) => {
           return reject({
             errorKey: 'phone',
             status: 'CONFLICT',
-            message: messages.error.USER_ALREADY_EXIST
+            message: messages.error.PHONE_ALREADY_EXIST
           })
         }
       }
