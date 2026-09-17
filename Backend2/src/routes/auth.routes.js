@@ -1,8 +1,8 @@
 
 const express = require('express');
-const { AdminLoginScheme, AdminRegisterSchema, CustomerForgetPasswordSchema, CustomerLoginSchema, CustomerRegisterSchema, CustomerResetPasswordSchema } = require('../middleware/requestValidators/auth.validator');
+const { AdminLoginScheme, AdminRegisterSchema, CustomerForgetPasswordSchema, CustomerLoginSchema, CustomerRegisterSchema, CustomerResetPasswordSchema, CustomerVerifyOtpSchema } = require('../middleware/requestValidators/auth.validator');
 const { validator } = require('../middleware/validator');
-const { adminLoginController, adminLogoutController, adminSignupController, createCustomerController, customerForgetPasswordController, customerLoginController, customerResetPasswordController } = require('../controllers/auth.controller');
+const { adminLoginController, adminLogoutController, adminSignupController, createCustomerController, verifyCustomerOtpController, customerForgetPasswordController, customerLoginController, customerResetPasswordController } = require('../controllers/auth.controller');
 const { validateJwtToken } = require('../middleware/jwtValidator');
 const { roleValidator } = require('../middleware/roleValidator');
 
@@ -15,7 +15,11 @@ const router = express.Router();
  * /api/v1/auth/customer/register:
  *   post:
  *     tags: [Auth V1]
- *     summary: Register a new customer
+ *     summary: Start customer registration — sends an email OTP
+ *     description: >
+ *       Validates the registration details and, if the email/phone isn't already in use, emails
+ *       a 6-digit OTP to the given address. No account is created yet — call
+ *       /customer/verify-otp with the same email and the received OTP to finish registration.
  *     requestBody:
  *       required: true
  *       content:
@@ -23,8 +27,42 @@ const router = express.Router();
  *           schema:
  *             $ref: '#/components/schemas/CustomerRegisterRequest'
  *     responses:
+ *       200:
+ *         description: OTP emailed to the given address
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       409:
+ *         description: Email or phone already in use
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/customer/register', validator(CustomerRegisterSchema), createCustomerController);
+
+/**
+ * @openapi
+ * /api/v1/auth/customer/verify-otp:
+ *   post:
+ *     tags: [Auth V1]
+ *     summary: Verify registration OTP and create the customer account
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CustomerVerifyOtpRequest'
+ *     responses:
  *       201:
- *         description: Customer registered successfully
+ *         description: Customer account created successfully
  *         content:
  *           application/json:
  *             schema:
@@ -34,16 +72,21 @@ const router = express.Router();
  *                 data:
  *                   type: object
  *                   properties:
- *                     token: { type: string }
  *                     user_id: { type: string }
  *       400:
- *         description: Validation error or email already in use
+ *         description: Invalid or expired OTP
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: No pending registration found for this email
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/customer/register', validator(CustomerRegisterSchema), createCustomerController);
+router.post('/customer/verify-otp', validator(CustomerVerifyOtpSchema), verifyCustomerOtpController);
 
 /**
  * @openapi

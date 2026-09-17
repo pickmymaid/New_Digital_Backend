@@ -9,6 +9,11 @@ const CustomerRegisterSchema = yup.object({
   password: yup.string().min(6, responseMessages.min('Password', 6)).max(16, responseMessages.max('Password', 16)).required(responseMessages.required('Password'))
 })
 
+const CustomerVerifyOtpSchema = yup.object({
+  email: yup.string().matches(regularExpressions.isEmail, responseMessages.validity('Email address')).required(responseMessages.required('Email')),
+  otp: yup.string().matches(/^\d{6}$/, 'OTP must be a 6-digit code').required(responseMessages.required('OTP')),
+})
+
 const CustomerLoginSchema = yup.object({
   email: yup.string().matches(regularExpressions.isEmail, responseMessages.validity('Email address')).required(responseMessages.required('Email')),
   // No min/max here: login only checks presence. Length rules belong to
@@ -44,6 +49,7 @@ const AdminLoginScheme = yup.object({
 
 module.exports = {
   CustomerRegisterSchema,
+  CustomerVerifyOtpSchema,
   CustomerLoginSchema,
   CustomerForgetPasswordSchema,
   CustomerResetPasswordSchema,

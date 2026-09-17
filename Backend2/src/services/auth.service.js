@@ -1,5 +1,5 @@
 const { responseHandler } = require("../utils/responseHandler/responseHandler");
-const { addCustomerPreference, createAdmin, createCustomer, getAdminWithEmail, getAdminWithID, getCustomerWithEmail, updateAdminByEmail, updateCustomerPasswordToken, updateCustomerPasswordWithEmail } = require("../queries/user.queries");
+const { addCustomerPreference, createAdmin, createCustomer, getAdminWithEmail, getAdminWithID, getCustomerWithEmail, getCustomerWithPhone, upsertPendingCustomer, getPendingCustomerWithEmail, deletePendingCustomerWithEmail, updateAdminByEmail, updateCustomerPasswordToken, updateCustomerPasswordWithEmail } = require("../queries/user.queries");
 const messages = require("../utils/constants/messages");
 const { passwordToHash } = require("../utils/passwordToHash/passwordToHash");
 const { passwordValidator } = require("../utils/passwordValidator/passwordValidator");
@@ -10,20 +10,23 @@ const { sendMail } = require("../utils/sendMail/sendMail");
 const { adminLoginMailBody } = require("../utils/mailBody/adminLogin");
 const { adminLogoutBody } = require("../utils/mailBody/adminLogout");
 const { createUserID } = require("../utils/createUserID/createUserID");
+const { generateOtp } = require("../utils/generateOtp/generateOtp");
 const base64url = require("base64url");
 const { forgetPasswordTemplate } = require("../utils/mailBody/forgotPassword");
+const { otpVerificationTemplate } = require("../utils/mailBody/otpVerification");
 const { sendSesEmailWithAttachment } = require("../utils/sendMail/sendSESMail");
 
+const OTP_VALIDITY_MS = 10 * 60 * 1000;
+
 /**
- * This function creates a new customer service account by checking if the user already exists, hashing
- * the password, and inserting the user into the database.
- * @param {object} user - The information needed to create a new customer account.
- * This information typically includes the customer's name, email address, password, and any other
- * relevant details.
- * @returns The function `createCustomerService` returns a Promise that resolves to a success message
- * (`messages.success.ACCOUNT_CREATED`) if a new customer account is successfully created, or rejects
- * with an error message (`messages.error.USER_ALREADY_EXIST` or the error message caught in the catch
- * block) if the user already exists or an error occurs during the process.
+ * This function starts a new customer registration by checking if the email/phone is already
+ * taken, hashing the password, storing the submitted details as a pending (unverified)
+ * registration, and emailing a 6-digit OTP to confirm the address. The actual customer account
+ * is only created once that OTP is confirmed via `verifyCustomerOtpService`.
+ * @param {object} user - The information submitted on the registration form (name, email,
+ * password, phone, etc).
+ * @returns A Promise that resolves with a message once the OTP has been emailed, or rejects with
+ * an error (`USER_ALREADY_EXIST` for a taken email/phone, or a mail/server failure).
  */
 const createCustomerService = (user) => {
   return new Promise(async (resolve, reject) => {
@@ -36,16 +39,103 @@ const createCustomerService = (user) => {
           message: messages.error.USER_ALREADY_EXIST
         })
       }
+      if (user.phone) {
+        const isPhoneTaken = await getCustomerWithPhone(user.phone);
+        if (isPhoneTaken) {
+          return reject({
+            errorKey: 'phone',
+            status: 'CONFLICT',
+            message: messages.error.USER_ALREADY_EXIST
+          })
+        }
+      }
       user.password = await passwordToHash(user.password);
-      const userId = createUserID(user.first_name);
-      let insert = await createCustomer({
+      const otp = generateOtp();
+
+      await upsertPendingCustomer({
         ...user,
+        otp,
+        otp_expires_at: new Date(Date.now() + OTP_VALIDITY_MS)
+      });
+
+      try {
+        await sendSesEmailWithAttachment(user.email, 'Verify Your Pickmymaid Email', otpVerificationTemplate(user.first_name, otp), '', [])
+      } catch (mailError) {
+        console.error('Failed to send OTP email:', mailError);
+        return reject({
+          status: 'INTERNAL_SERVER_ERROR',
+          message: messages.error.MAIL_NOT_SENT
+        })
+      }
+
+      return resolve({
+        message: `OTP sent to ${user.email}`
+      });
+    } catch (error) {
+      return reject({
+        status: 'INTERNAL_SERVER_ERROR',
+        message: error.message
+      })
+    }
+  })
+}
+
+/**
+ * This function completes customer registration by verifying the OTP emailed during
+ * `createCustomerService` against the pending registration record, then creating the real
+ * customer account and preference document.
+ * @param {string} email - The email address the OTP was sent to.
+ * @param {string} otp - The 6-digit OTP submitted by the user.
+ * @returns A Promise that resolves with the created user's details, or rejects if the pending
+ * registration is missing/expired or the OTP doesn't match.
+ */
+const verifyCustomerOtpService = (email, otp) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const pending = await getPendingCustomerWithEmail(email);
+      if (!pending) {
+        return reject({
+          errorKey: 'email',
+          status: 'NOT_FOUND',
+          message: messages.error.REGISTRATION_NOT_FOUND
+        })
+      }
+
+      if (pending.otp_expires_at.getTime() < Date.now()) {
+        await deletePendingCustomerWithEmail(email);
+        return reject({
+          errorKey: 'otp',
+          status: 'BAD_REQUEST',
+          message: messages.error.OTP_EXPIRED
+        })
+      }
+
+      if (pending.otp !== otp) {
+        return reject({
+          errorKey: 'otp',
+          status: 'BAD_REQUEST',
+          message: messages.error.INVALID_OTP
+        })
+      }
+
+      const userId = createUserID(pending.first_name);
+      const pendingData = pending.toObject();
+      delete pendingData._id;
+      delete pendingData.otp;
+      delete pendingData.otp_expires_at;
+      delete pendingData.createdAt;
+      delete pendingData.updatedAt;
+      delete pendingData.__v;
+
+      let insert = await createCustomer({
+        ...pendingData,
         type: 'email',
         user_id: userId
       });
 
+      await addCustomerPreference({ ...pendingData, user_id: userId })
+      await deletePendingCustomerWithEmail(email);
 
-      await addCustomerPreference({...user, user_id: userId})
       return resolve({
         message: messages.success.ACCOUNT_CREATED,
         user: {
@@ -374,6 +464,7 @@ const adminLogoutService = (user_id) => {
 
 module.exports = {
   createCustomerService,
+  verifyCustomerOtpService,
   customerLoginService,
   customerForgetPasswordService,
   customerResetPasswordService,

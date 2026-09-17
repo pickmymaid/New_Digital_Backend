@@ -1,6 +1,7 @@
 const { AdminModel } = require("../models/users/admin.model");
 const { CustomerModel } = require("../models/users/customer.model");
 const { CustomerPreferenceModel } = require("../models/users/customerPreference.model");
+const { PendingCustomerModel } = require("../models/users/pendingCustomer.model");
 const { createUserID } = require("../utils/createUserID/createUserID");
 
 const createCustomer = async (body) => {
@@ -168,6 +169,29 @@ const getCustomerWithEmail = async (email) => {
   return await CustomerModel.findOne({ email })
 }
 
+const getCustomerWithPhone = async (phone) => {
+  return await CustomerModel.findOne({ phone })
+}
+
+// Upsert so re-submitting the registration form with the same email before
+// verifying (e.g. to get a fresh OTP) replaces the pending record instead of
+// failing on the unique email index.
+const upsertPendingCustomer = async (data) => {
+  return await PendingCustomerModel.findOneAndUpdate(
+    { email: data.email },
+    { $set: data },
+    { upsert: true, new: true }
+  )
+}
+
+const getPendingCustomerWithEmail = async (email) => {
+  return await PendingCustomerModel.findOne({ email })
+}
+
+const deletePendingCustomerWithEmail = async (email) => {
+  return await PendingCustomerModel.deleteOne({ email })
+}
+
 const updateCustomerPasswordToken = async (email, reset_token) => {
   return await CustomerModel.updateOne({ email }, { reset_token })
 }
@@ -216,6 +240,10 @@ module.exports = {
   getCustomerWithEmailOrAccountId,
   getAllCustomers,
   getCustomerWithEmail,
+  getCustomerWithPhone,
+  upsertPendingCustomer,
+  getPendingCustomerWithEmail,
+  deletePendingCustomerWithEmail,
   updateCustomerPasswordToken,
   updateRoleOfAdmin,
   updateCustomerPasswordWithEmail,

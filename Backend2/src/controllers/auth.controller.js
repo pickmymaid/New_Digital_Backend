@@ -1,27 +1,40 @@
 const { responseHandler } = require("../utils/responseHandler/responseHandler");
-const { adminLoginService, adminLogoutService, adminSignupService, createCustomerService, customerForgetPasswordService, customerLoginService, customerResetPasswordService } = require("../services/auth.service");
+const { adminLoginService, adminLogoutService, adminSignupService, createCustomerService, verifyCustomerOtpService, customerForgetPasswordService, customerLoginService, customerResetPasswordService } = require("../services/auth.service");
 const messages = require("../utils/constants/messages");
 const responseMessages = require("../utils/constants/responseMessages");
 const { validateJwtToken } = require("../utils/validateJWT/validateJWT");
 
 /**
- * This function creates a customer controller that handles requests to create a new customer and
- * checks if the password and confirm password fields match.
+ * This function handles requests to start customer registration: it validates the submitted
+ * details and, if the email/phone isn't already taken, emails a 6-digit OTP to confirm the
+ * address. No account is created yet — that happens once the OTP is verified.
  * @param {object} req - The `req` parameter is an object that represents the HTTP request made to the
  * server. It contains information such as the request method, headers, URL, and request body.
  * @param {object} res - Response is an object that represents the HTTP response that an Express app
  * sends when it gets an HTTP request. It is used to send a response back to the client.
- * @returns either a response with a status code of 'BAD_REQUEST' or 'CREATED', depending on the
- * outcome of the createCustomerService promise. If the promise resolves successfully, the response
- * will have a status code of 'CREATED' and a message object in the data field. If the promise is
- * rejected, the response will have a status code of 'BAD_REQUEST' and an error
  */
 const createCustomerController = (req, res) => {
   const user = req.body;
-  const redirection = req.query.redirection || ''
   createCustomerService(user).then((data) => {
-    req.logIn(data.user,(err) => {
-      if(err){
+    return responseHandler(res, 'OK', null, { message: data.message })
+  }).catch(error => {
+    responseHandler(res, error?.status || 'INTERNAL_SERVER_ERROR', null, { message: error?.message, errorKey: error?.errorKey })
+  })
+}
+
+/**
+ * This function verifies the OTP emailed during registration and, on success, creates the
+ * actual customer account and logs the new customer in.
+ * @param {object} req - The `req` parameter is an object that represents the HTTP request made to the
+ * server. Expects `email` and `otp` in the request body.
+ * @param {object} res - Response is an object that represents the HTTP response that an Express app
+ * sends when it gets an HTTP request.
+ */
+const verifyCustomerOtpController = (req, res) => {
+  const { email, otp } = req.body;
+  verifyCustomerOtpService(email, otp).then((data) => {
+    req.logIn(data.user, (err) => {
+      if (err) {
         return responseHandler(res, 'INTERNAL_SERVER_ERROR', null, { message: 'Something went wrong, please try again!' })
       }
       return responseHandler(res, 'CREATED', data.user, { message: data.message, redirection: "pricing" })
@@ -159,6 +172,7 @@ const adminLogoutController = async (req, res) => {
 
 module.exports = {
   createCustomerController,
+  verifyCustomerOtpController,
   customerLoginController,
   customerForgetPasswordController,
   customerResetPasswordController,
