@@ -187,6 +187,7 @@ jobs:
         env:
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
           ADMIN_EMAIL_PASS: ${{ secrets.ADMIN_EMAIL_PASS }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
           DO_SPACES_ACCESS_KEY: ${{ secrets.DO_SPACES_ACCESS_KEY }}
           DO_SPACES_SECRET_KEY: ${{ secrets.DO_SPACES_SECRET_KEY }}
           SA_EMAIL: ${{ secrets.SA_EMAIL }}
@@ -196,6 +197,7 @@ jobs:
           kubectl create secret generic backend1-secret -n pickmymaid \
             --from-literal=ADMIN_EMAIL="$ADMIN_EMAIL" \
             --from-literal=ADMIN_EMAIL_PASS="$ADMIN_EMAIL_PASS" \
+            --from-literal=BREVO_API_KEY="$BREVO_API_KEY" \
             --from-literal=DO_SPACES_ACCESS_KEY="$DO_SPACES_ACCESS_KEY" \
             --from-literal=DO_SPACES_SECRET_KEY="$DO_SPACES_SECRET_KEY" \
             --from-literal=SA_EMAIL="$SA_EMAIL" \
@@ -208,6 +210,7 @@ jobs:
         env:
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
           ADMIN_EMAIL_PASS: ${{ secrets.ADMIN_EMAIL_PASS }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           FB_APP_ID: ${{ secrets.FB_APP_ID }}
@@ -224,6 +227,7 @@ jobs:
           kubectl create secret generic backend2-secret -n pickmymaid \
             --from-literal=ADMIN_EMAIL="$ADMIN_EMAIL" \
             --from-literal=ADMIN_EMAIL_PASS="$ADMIN_EMAIL_PASS" \
+            --from-literal=BREVO_API_KEY="$BREVO_API_KEY" \
             --from-literal=GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
             --from-literal=GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
             --from-literal=FB_APP_ID="$FB_APP_ID" \
