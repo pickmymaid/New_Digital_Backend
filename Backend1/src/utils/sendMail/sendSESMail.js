@@ -5,6 +5,9 @@ const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 // Gmail's SMTP transport (ports 25/465/587) is blocked outbound from this
 // cluster's worker nodes, so mail goes through Brevo's HTTPS API (port 443,
 // never blocked) instead of connecting to smtp.gmail.com directly.
+// BREVO_API_KEY must be an API key (Settings > SMTP & API > API Keys,
+// prefixed xkeysib-), not an SMTP key (prefixed xsmtpsib-) - Brevo rejects
+// the latter on this endpoint with 401 "Key not found".
 const sendSesEmailWithAttachment = async (
   toAddress,
   subject,
