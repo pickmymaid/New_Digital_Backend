@@ -29,6 +29,18 @@ const {
 const { compareObjects } = require('../utils/compareObject/compareObject');
 const messages = require('../utils/constants/messages');
 
+const triggerMaidRevalidation = (refNumber) => {
+  if (!refNumber) return;
+  fetch(`${process.env.BASE_URL}/api/revalidate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: refNumber,
+      secret: process.env.REVALIDATE_SECRET,
+    }),
+  }).catch((err) => console.error("Revalidation failed:", err));
+};
+
 const postJobApplicationClientFormService = (data) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -130,14 +142,7 @@ const updateJobApplicationFormService = (data, userId) => {
         await uploadMaidHistory(history)
       }
 
-      fetch(`${process.env.BASE_URL}/api/revalidate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: newDetails?.ref_number,
-          secret: process.env.NEXTJS_REVALIDATE_SECRET,
-        }),
-      }).catch((err) => console.error("Revalidation failed:", err));
+      triggerMaidRevalidation(newDetails?.ref_number);
 
       return resolve(messages.success.UPDATED_SUCCESSFULLY);
     } catch (error) {
@@ -160,6 +165,8 @@ const createJobApplicationDashboardService = (data, userId) => {
       }
       await uploadMaidHistory(history)
 
+      triggerMaidRevalidation(maidDetails?.ref_number);
+
       return resolve(messages.success.ACCOUNT_CREATED);
     } catch (error) {
       return reject(error.message);
@@ -179,7 +186,8 @@ const verifyJobApplicationService = (id, status) => {
         updateStatus = 1;
 
       }
-      await changeStatusofJobApplication(id,updateStatus);
+      const prevDetails = await changeStatusofJobApplication(id,updateStatus);
+      triggerMaidRevalidation(prevDetails?.ref_number);
       return resolve(messages.success.UPDATED_SUCCESSFULLY);
     } catch (error) {
       return reject(error.message);
@@ -199,7 +207,8 @@ const assureJobApplicationService = (id, status) => {
         updateStatus = true
 
       }
-      await changeAssuredStatus(id, updateStatus);
+      const prevDetails = await changeAssuredStatus(id, updateStatus);
+      triggerMaidRevalidation(prevDetails?.ref_number);
       return resolve(messages.success.UPDATED_SUCCESSFULLY);
     } catch (error) {
       return reject(error.message);
@@ -230,7 +239,8 @@ const disableJobApplicationService = (id, status) => {
       } else {
         updateStatus = 3;
       }
-      await changeStatusofJobApplication(id, updateStatus);
+      const prevDetails = await changeStatusofJobApplication(id, updateStatus);
+      triggerMaidRevalidation(prevDetails?.ref_number);
       return resolve(messages.success.UPDATED_SUCCESSFULLY);
     } catch (error) {
       return reject(error.message);
@@ -250,7 +260,8 @@ const changeAvailabilityJobApplicationService = (id, status) => {
         updateStatus = true;
       }
 
-      await changeAvailabilityStatus(id, updateStatus);
+      const prevDetails = await changeAvailabilityStatus(id, updateStatus);
+      triggerMaidRevalidation(prevDetails?.ref_number);
       return resolve(messages.success.UPDATED_SUCCESSFULLY);
     } catch (error) {
       return reject(error.message);
