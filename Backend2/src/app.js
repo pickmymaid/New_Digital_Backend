@@ -5,6 +5,7 @@ try {
   console.warn("dns.setDefaultResultOrder not available on this Node version");
 }
 
+const path = require('path');
 const express = require('express');
 require('dotenv').config();
 const logger = require('morgan');
@@ -58,6 +59,10 @@ connectDatabase();
 
 app.get('/', (req, res) => res.send('Pickmymaid Backend2 (auth + payment)'));
 app.get('/health', (req, res) => res.status(200).send({ status: 'ok', service: 'backend2-auth-payment' }));
+
+// Images referenced by outgoing emails (e.g. the logo in the OTP mail). Mounted
+// under /api/v1/auth so the existing Ingress prefix already routes it here.
+app.use('/api/v1/auth/email-assets', express.static(path.join(__dirname, 'assets', 'email'), { maxAge: '30d' }));
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v2/auth', authRoutesV2);

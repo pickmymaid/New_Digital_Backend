@@ -59,7 +59,7 @@ const createCustomerService = (user) => {
       });
 
       try {
-        await sendSesEmailWithAttachment(user.email, 'Verify Your Pickmymaid Email', otpVerificationTemplate(user.first_name, otp), '', [])
+        await sendSesEmailWithAttachment(user.email, 'Verify Your Pickmymaid Email', otpVerificationTemplate(user.first_name, otp), '', [], undefined, 'Pickmymaid Email Verification')
       } catch (mailError) {
         console.error('Failed to send OTP email:', mailError);
         return reject({

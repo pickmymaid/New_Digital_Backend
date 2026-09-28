@@ -219,15 +219,6 @@ const createJobApplicationDashboardController = async (req, res) => {
 
     createJobApplicationDashboardService(data, userId)
       .then((message) => {
-        fetch(`${process.env.BASE_URL}/api/revalidate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            secret: process.env.REVALIDATE_SECRET,
-            path: "/" // or any path you want to revalidate
-          })
-        })
-
         responseHandler(res, 'CREATED', null, { message });
       })
       .catch((message) => {

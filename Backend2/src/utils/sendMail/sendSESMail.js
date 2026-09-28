@@ -14,10 +14,11 @@ const sendSesEmailWithAttachment = async (
   htmlBody,
   textBody,
   attachments = [],
-  cc
+  cc,
+  senderName = "Pickmymaid Support Team"
 ) => {
   const payload = {
-    sender: { name: "Pickmymaid Support Team", email: process.env.ADMIN_EMAIL },
+    sender: { name: senderName, email: process.env.ADMIN_EMAIL },
     to: [{ email: toAddress }],
     subject,
     htmlContent: htmlBody,
