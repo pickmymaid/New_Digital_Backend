@@ -22,15 +22,23 @@ const { adminRoutes, jobRoutes, contactRoutes, blogRoutes, maidsV2Routes, analyt
 const app = express();
 const ONE_YEAR = 365 * 24 * 60 * 60 * 1000;
 
-app.use(logger(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+app.use(logger(IS_PROD ? 'combined' : 'dev'));
+
+// TLS terminates at the Ingress; trust X-Forwarded-Proto so secure cookies can be set.
+app.set('trust proxy', 1);
 
 // Same cookie name + COOKIE_KEY as Backend2, so a session started there
 // is readable here too (cookie-session keeps session data in the cookie).
+// Must match Backend2's SameSite=None; Secure (frontend and API are different sites).
 app.use(
   cookieSession({
     name: "session",
     keys: [process.env.COOKIE_KEY],
     maxAge: ONE_YEAR,
+    sameSite: IS_PROD ? 'none' : 'lax',
+    secure: IS_PROD,
   })
 );
 

@@ -21,15 +21,24 @@ const { authRoutes, authRoutesV2, paymentRoutes, paymentV2Routes, internalRoutes
 const app = express();
 const ONE_YEAR = 365 * 24 * 60 * 60 * 1000;
 
-app.use(logger(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+app.use(logger(IS_PROD ? 'combined' : 'dev'));
+
+// TLS terminates at the Ingress; trust X-Forwarded-Proto so secure cookies can be set.
+app.set('trust proxy', 1);
 
 // Same cookie name + COOKIE_KEY as Backend1, so a session cookie set by
 // this service's /api/v2/auth/local (or OAuth) login is readable there too.
+// The frontend (www.pickmymaid.com) and API (api.backendpickmymaid.site) are
+// different sites, so the cookie must be SameSite=None; Secure to be sent.
 app.use(
   cookieSession({
     name: "session",
     keys: [process.env.COOKIE_KEY],
     maxAge: ONE_YEAR,
+    sameSite: IS_PROD ? 'none' : 'lax',
+    secure: IS_PROD,
   })
 );
 
