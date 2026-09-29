@@ -221,6 +221,9 @@ jobs:
           APPLE_AUTH_KEY_P8_BASE64: ${{ secrets.APPLE_AUTH_KEY_P8_BASE64 }}
           PG_API_KEY: ${{ secrets.PG_API_KEY }}
           PG_OUTLET_REFERENCE: ${{ secrets.PG_OUTLET_REFERENCE }}
+          PG_BASE_URL: ${{ secrets.PG_BASE_URL }}
+          PAYMENT_REDIRECT_URL: ${{ secrets.PAYMENT_REDIRECT_URL }}
+          REDIRECT_URL: ${{ secrets.REDIRECT_URL }}
           COMPANY_TOKEN: ${{ secrets.COMPANY_TOKEN }}
           COMPANY_SERVICE: ${{ secrets.COMPANY_SERVICE }}
         run: |
@@ -238,6 +241,9 @@ jobs:
             --from-literal=APPLE_AUTH_KEY_P8_BASE64="$APPLE_AUTH_KEY_P8_BASE64" \
             --from-literal=PG_API_KEY="$PG_API_KEY" \
             --from-literal=PG_OUTLET_REFERENCE="$PG_OUTLET_REFERENCE" \
+            --from-literal=PG_BASE_URL="$PG_BASE_URL" \
+            --from-literal=PAYMENT_REDIRECT_URL="$PAYMENT_REDIRECT_URL" \
+            --from-literal=REDIRECT_URL="$REDIRECT_URL" \
             --from-literal=COMPANY_TOKEN="$COMPANY_TOKEN" \
             --from-literal=COMPANY_SERVICE="$COMPANY_SERVICE" \
             --dry-run=client -o yaml | kubectl apply -f -

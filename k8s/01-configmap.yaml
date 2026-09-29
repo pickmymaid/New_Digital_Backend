@@ -34,6 +34,5 @@ data:
   PORT: "8081"
   BASE_URL: "https://www.pickmymaid.com"
   BASE_API_URL: "https://api.backendpickmymaid.site"
-  PG_BASE_URL: "https://secure.3gdirectpay.com/API/v6/"
-  PAYMENT_REDIRECT_URL: "https://www.pickmymaid.com/payment/redirect"
-  REDIRECT_URL: "https://www.pickmymaid.com/payment/redirect"
+  # PG_BASE_URL, PAYMENT_REDIRECT_URL and REDIRECT_URL come from backend2-secret
+  # (GitHub secrets of the same names) — see deploy-k8s.yml.

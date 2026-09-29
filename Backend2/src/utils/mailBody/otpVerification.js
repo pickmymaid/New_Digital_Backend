@@ -1,7 +1,7 @@
 // Table layout + inline styles only: most email clients (Outlook, Gmail)
 // strip <style> blocks and ignore flexbox/grid.
 const LOGO_URL = 'https://api.backendpickmymaid.site/api/v1/auth/email-assets/pickmymaid-logo.png';
-const SUPPORT_EMAIL = 'pickmymaid@gmail.com';
+const SUPPORT_EMAIL = 'support@pickmymaid.com';
 const SUPPORT_PHONE = '+971 56 636 9736';
 const SUPPORT_PHONE_TEL = '+971566369736';
 
