@@ -1,0 +1,68 @@
+name: Copy images R2 -> Spaces
+
+# One-off, manual-only migration of the images uploaded while file storage
+# was on Cloudflare R2 (before f626f48) into DO Spaces, under the same keys
+# (images/<date>/<filename>) so paths already stored in MongoDB resolve.
+# Nothing in R2 is modified or deleted; re-running skips objects already
+# copied. Run with dry_run=true first and check the log.
+#
+# Needs repo secrets R2_ACCOUNT_ID, R2_ACCESS_KEY, R2_SECRET_KEY, R2_BUCKET
+# (Cloudflare -> R2 -> Manage R2 API Tokens) plus the existing DO_SPACES_*.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Only list what would be copied (writes nothing)'
+        type: boolean
+        default: true
+      prefix:
+        description: 'Folder to copy'
+        type: string
+        default: 'images'
+
+jobs:
+  copy:
+    name: Copy R2 -> Spaces
+    runs-on: ubuntu-latest
+    env:
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY }}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_KEY }}
+      RCLONE_CONFIG_R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      RCLONE_CONFIG_R2_NO_CHECK_BUCKET: 'true'
+      RCLONE_CONFIG_SPACES_TYPE: s3
+      RCLONE_CONFIG_SPACES_PROVIDER: DigitalOcean
+      RCLONE_CONFIG_SPACES_ACCESS_KEY_ID: ${{ secrets.DO_SPACES_ACCESS_KEY }}
+      RCLONE_CONFIG_SPACES_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET_KEY }}
+      RCLONE_CONFIG_SPACES_ENDPOINT: ${{ secrets.DO_SPACES_REGION }}.digitaloceanspaces.com
+      RCLONE_CONFIG_SPACES_ACL: public-read
+      RCLONE_CONFIG_SPACES_NO_CHECK_BUCKET: 'true'
+      SRC: R2:${{ secrets.R2_BUCKET }}/${{ inputs.prefix }}
+      DST: SPACES:${{ secrets.DO_SPACES_BUCKET }}/${{ inputs.prefix }}
+    steps:
+      - name: Install rclone
+        run: curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Source size (R2)
+        run: rclone size "$SRC"
+
+      - name: Destination size before copy (Spaces)
+        run: rclone size "$DST"
+
+      - name: Dry run
+        if: inputs.dry_run
+        run: rclone copy "$SRC" "$DST" --dry-run -v --stats-one-line 2>&1 | tail -50
+
+      # -M keeps Content-Type / Cache-Control from the source objects.
+      - name: Copy
+        if: ${{ !inputs.dry_run }}
+        run: rclone copy "$SRC" "$DST" -M --transfers 16 --checkers 16 --stats 30s --stats-one-line -v
+
+      - name: Verify every R2 object exists in Spaces
+        if: ${{ !inputs.dry_run }}
+        run: rclone check "$SRC" "$DST" --one-way --size-only
+
+      - name: Destination size after copy (Spaces)
+        if: ${{ !inputs.dry_run }}
+        run: rclone size "$DST"
