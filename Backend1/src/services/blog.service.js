@@ -1,7 +1,6 @@
-const { unlink } = require("fs");
 const { addCommentToBlog, checkSlugExists, deleteBlog, deleteCommentId, editBlog, getAllBlogsForAdmin, getAllBlogsPaginated, getBlogById, getComments, likeBlog, saveBlog } = require("../queries/blog.queries");
 const messages = require("../utils/constants/messages");
-const { uploadimage } = require("../utils/fileUpload/fileUpload");
+const { uploadimage, deleteimage } = require("../utils/fileUpload/fileUpload");
 const path = require('path');
 const appModule = require("../app");
 const { slugify } = require("../utils/slugify.utils");
@@ -56,10 +55,8 @@ const editBlogService = (blogData,slug, thumbnailFile) => {
         try{
             thumbnailFile = thumbnailFile && await uploadimage(thumbnailFile);
             await editBlog(slug,blogData,thumbnailFile);
-            if(thumbnailFile){
-                unlink(`${appModule.rootDir.replace(/\/src$/, '')}/public/uploads/${blogData.thumbnail.replace("images/", "")}`, (err) => {
-                    console.log(err);
-                })
+            if(thumbnailFile && blogData?.thumbnail){
+                await deleteimage(blogData.thumbnail);
             }
             return resolve({
                 message: messages.success.SUBMIT
