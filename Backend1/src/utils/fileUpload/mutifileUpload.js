@@ -1,44 +1,17 @@
-const path = require('path');
-const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
+const { uploadToSpaces } = require('./fileUpload');
 
 const uploadmultipleImages = async (files) => {
-  const allowedFileTypes = ['jpg', 'jpeg', 'png', 'webp','pdf']; // Add the file types you want to allow
+  const allowedFileTypes = ['jpg', 'jpeg', 'png', 'webp', 'pdf']; // Add the file types you want to allow
 
-  const newDate = new Date().toLocaleDateString('fr-CA');
-  const dir = `public/uploads/${newDate}`;
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
+  // express-fileupload gives a single object (not an array) for one file
+  files = Array.isArray(files) ? files : [files];
 
-  const uploadPromises = files.map((file) => {
-    const ext = file.name.split('.')[1];
-    const filename = Date.now() + uuidv4() + '.' + ext;
-    const filepath = 'images/' + newDate + '/' + filename;
-    const newpath = path.join(process.cwd(), dir, filename);
-
-    // Check if the file type is allowed
-    if (!allowedFileTypes.includes(ext.toLowerCase())) {
-      throw new Error('Invalid file type. Only ' + allowedFileTypes.join(', ') + ' files are allowed.');
-    }
-
-    return new Promise((resolve, reject) => {
-      file.mv(newpath, (err) => {
-        if (err) {
-          console.log(err);
-          reject(err);
-        } else {
-
-          resolve({ name: file.name, image: filepath });
-        }
-      });
-    });
-  });
-
-  const uploadedFiles = await Promise.all(uploadPromises);
-
-
-  return uploadedFiles;
+  return Promise.all(
+    files.map(async (file) => ({
+      name: file.name,
+      image: await uploadToSpaces(file, allowedFileTypes)
+    }))
+  );
 };
 
 module.exports = { uploadmultipleImages };

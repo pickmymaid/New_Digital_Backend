@@ -8,6 +8,7 @@ const {
   changeStatusofJobApplication,
   createJobApplication,
   createJobApplicationClientForm,
+  createJobApplicationCareersForm,
   createNewJob,
   deleteJobApplication,
   deleteNewJob,
@@ -45,6 +46,32 @@ const postJobApplicationClientFormService = (data) => {
   return new Promise(async (resolve, reject) => {
     try {
       await createJobApplicationClientForm(data);
+      return resolve(messages.success.ACCOUNT_CREATED);
+    } catch (error) {
+      return reject(error.message);
+    }
+  });
+};
+
+// Fields a candidate may set from the public careers form. Anything else
+// (status, references, ref_number, ...) is admin-only and dropped.
+const CAREERS_FORM_FIELDS = [
+  'name', 'email', 'mobile', 'age', 'marital_status', 'nationality', 'location',
+  'religion', 'salary', 'is_negotiable_salary', 'uae_no', 'whatsapp_no',
+  'botim_number', 'service', 'current_location', 'youtube_link', 'visa_status',
+  'availability', 'skills', 'language', 'option', 'employmentHistory',
+  'education', 'notes', 'available_from', 'visa_expire', 'day_of',
+  'profile', 'word_file', 'video',
+];
+
+const createJobApplicationCareersService = (data) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const allowed = {};
+      CAREERS_FORM_FIELDS.forEach((field) => {
+        if (data[field] !== undefined) allowed[field] = data[field];
+      });
+      await createJobApplicationCareersForm(allowed);
       return resolve(messages.success.ACCOUNT_CREATED);
     } catch (error) {
       return reject(error.message);
@@ -370,6 +397,7 @@ const listAllWishlistService = (user_id) => {
 
 module.exports = {
   postJobApplicationClientFormService,
+  createJobApplicationCareersService,
   getJobApplicationFormService,
   getAllJobApplicationFormService,
   getVerifiedAndReferenceApplicationFormService,

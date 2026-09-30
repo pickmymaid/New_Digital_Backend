@@ -17,6 +17,16 @@ const createJobApplicationClientForm = async (body) => {
   return await clientForm.save();
 };
 
+// Public careers form: always saved unapproved (status 0) until an admin verifies it
+const createJobApplicationCareersForm = async (body) => {
+  const careersForm = new jobApplicationModel({
+    ref_number: generateUniqueId(),
+    ...body,
+    status: 0,
+  });
+  return await careersForm.save();
+};
+
 const getJobApplication = async (status) => {
   const result = await jobApplicationModel
     .find({ status: status })
@@ -83,7 +93,7 @@ const getAlljobApplication = async (
   const data = await jobApplicationModel
     .find(
       filter,
-      { name: 1, email: 1, uae_no: 1, ref_number: 1, references: 1, availability: 1, status: 1 }
+      { name: 1, email: 1, uae_no: 1, ref_number: 1, references: 1, availability: 1, status: 1, video: 1 }
     )
     .sort({ date: -1, "salary.from": 1 })
     .limit(limit)
@@ -511,6 +521,7 @@ const getAllFavoriteMaids = async(user_id) => {
 
 module.exports = {
   createJobApplicationClientForm,
+  createJobApplicationCareersForm,
   getJobApplication,
   getAlljobApplication,
   uploadMaidHistory,

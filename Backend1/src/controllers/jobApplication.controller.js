@@ -2,6 +2,7 @@ const { responseHandler } = require('../utils/responseHandler/responseHandler');
 const {
   assureJobApplicationService,
   changeAvailabilityJobApplicationService,
+  createJobApplicationCareersService,
   createJobApplicationDashboardService,
   createNewjobService,
   deleteJobApplicationService,
@@ -23,7 +24,7 @@ const {
   updateJobApplicationFormService,
   verifyJobApplicationService,
 } = require('../services/jobApplication.service');
-const { uploadimage } = require('../utils/fileUpload/fileUpload');
+const { uploadimage, uploadvideo } = require('../utils/fileUpload/fileUpload');
 const { uploadmultipleImages } = require('../utils/fileUpload/mutifileUpload');
 const logger = require('../config/logger');
 const { logErrorWithSource } = logger;
@@ -43,6 +44,53 @@ const createJobApplicationClientController = (req, res) => {
       });
   } catch (error) {
     logErrorWithSource(error, {meta: {body: req.body}})
+    responseHandler(res, 'INTERNAL_SERVER_ERROR');
+  }
+};
+
+// multipart/form-data sends nested fields as JSON strings
+const parseJsonField = (value) => {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+};
+
+// Public careers form: maid applies from the website, saved unapproved (status 0)
+const createJobApplicationCareersController = async (req, res) => {
+  try {
+    const data = { ...req.body };
+
+    ['salary', 'language', 'skills', 'employmentHistory'].forEach((field) => {
+      if (data[field] !== undefined) data[field] = parseJsonField(data[field]);
+    });
+
+    try {
+      if (req?.files?.profile) {
+        data.profile = await uploadimage(req.files.profile);
+      }
+      if (req?.files?.wordfiles) {
+        data.word_file = await uploadmultipleImages(req.files.wordfiles);
+      }
+      if (req?.files?.video) {
+        data.video = await uploadvideo(req.files.video);
+      }
+    } catch (error) {
+      return responseHandler(res, 'BAD_REQUEST', null, { message: error.message });
+    }
+
+    createJobApplicationCareersService(data)
+      .then((message) => {
+        responseHandler(res, 'CREATED', null, { message });
+      })
+      .catch((message) => {
+        logger.error(message, { meta: { body: req.body } });
+        responseHandler(res, 'BAD_REQUEST', null, { message });
+      });
+  } catch (error) {
+    logErrorWithSource(error, { meta: { body: req.body } });
     responseHandler(res, 'INTERNAL_SERVER_ERROR');
   }
 };
@@ -374,12 +422,12 @@ const getFeaturedMaidsController = (req, res) => {
   }
 };
 
-const createNewJobController = (req, res) => {
+const createNewJobController = async (req, res) => {
   try {
     const data = req.body;
 
     if (req.files && req.files.image) {
-      data.image = uploadimage(req?.files?.image);
+      data.image = await uploadimage(req?.files?.image);
     }
 
     createNewjobService(data)
@@ -494,6 +542,7 @@ const listAllWishlist = (req, res) => {
 
 module.exports = {
   createJobApplicationClientController,
+  createJobApplicationCareersController,
   getJobApplicationFormController,
   getAllJobApplicationFormController,
   getVerifiedAndReferenceJobApplicationFormController,

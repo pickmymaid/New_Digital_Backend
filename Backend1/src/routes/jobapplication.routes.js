@@ -2,6 +2,7 @@ const { getApprovedJobApplicationFormController, getJobApplicationbyidFormContro
 const express = require('express');
 const {
   createJobApplicationClientController,
+  createJobApplicationCareersController,
   createJobApplicationDashboardController,
   deleteJobApplicationController,
   getJobApplicationFormController,
@@ -9,7 +10,7 @@ const {
   verifyJobApplicationController,
 } = require('../controllers/jobApplication.controller');
 const { validateJwtToken } = require('../middleware/jwtValidator');
-const { jobApplicationClientFormSchema } = require('../middleware/requestValidators/jobApplication.validator');
+const { jobApplicationClientFormSchema, jobApplicationCareersFormSchema } = require('../middleware/requestValidators/jobApplication.validator');
 const { roleValidator } = require('../middleware/roleValidator');
 const { validator } = require('../middleware/validator');
 
@@ -44,6 +45,72 @@ const router = express.Router();
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/register', validator(jobApplicationClientFormSchema), createJobApplicationClientController);
+
+/**
+ * @openapi
+ * /api/v1/job/careers:
+ *   post:
+ *     tags: [Maids V1]
+ *     summary: Maid application from the website careers page (public)
+ *     description: Public clone of the admin create-maid API. Accepts multipart/form-data with an optional profile photo, documents and an intro video. The application is always saved unapproved (status 0) until an admin verifies it via PUT /api/v1/job/verify. Max 50 MB per file.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [name, mobile]
+ *             properties:
+ *               name: { type: string, example: Maria Santos }
+ *               email: { type: string, format: email }
+ *               mobile: { type: string, example: '+971501234567' }
+ *               whatsapp_no: { type: string }
+ *               age: { type: integer, example: 30 }
+ *               nationality: { type: string, example: Filipino }
+ *               marital_status: { type: string, example: Single }
+ *               religion: { type: string, example: Christian }
+ *               location: { type: string, example: Dubai }
+ *               current_location: { type: string }
+ *               service: { type: string }
+ *               visa_status: { type: string }
+ *               visa_expire: { type: string }
+ *               available_from: { type: string }
+ *               education: { type: string }
+ *               notes: { type: string }
+ *               youtube_link: { type: string }
+ *               salary: { type: string, description: 'JSON string, e.g. {"from":1500,"to":2000}' }
+ *               skills: { type: string, description: JSON array string }
+ *               language: { type: string, description: 'JSON array string of {name, read, write, speak}' }
+ *               employmentHistory: { type: string, description: 'JSON array string of {title, job_description, experiance, reason_leaving, location}' }
+ *               profile:
+ *                 type: string
+ *                 format: binary
+ *                 description: Profile photo (jpg, jpeg, png, webp)
+ *               wordfiles:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Supporting documents (jpg, jpeg, png, webp, pdf)
+ *               video:
+ *                 type: string
+ *                 format: binary
+ *                 description: Intro video (mp4, mov, webm, m4v)
+ *     responses:
+ *       201:
+ *         description: Application submitted (unapproved)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       400:
+ *         description: Validation error or invalid file type
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/careers', validator(jobApplicationCareersFormSchema), createJobApplicationCareersController);
 
 /**
  * @openapi

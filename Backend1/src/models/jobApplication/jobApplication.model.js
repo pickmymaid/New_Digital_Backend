@@ -106,6 +106,9 @@ const jobapplicationSchema = new mongoose.Schema(
     youtube_link: {
       type: String,
     },
+    video: {
+      type: String, // Spaces object key, uploaded from the careers form
+    },
     visa_status: {
       type: String,
     },
