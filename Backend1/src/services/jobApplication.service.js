@@ -28,6 +28,7 @@ const {
 } = require('../queries/jobapplication.queries');
 const { compareObjects } = require('../utils/compareObject/compareObject');
 const messages = require('../utils/constants/messages');
+const { HttpError } = require('../utils/httpError');
 
 const triggerMaidRevalidation = (refNumber) => {
   if (!refNumber) return;
@@ -126,7 +127,10 @@ const updateJobApplicationFormService = (data, userId) => {
       if(data.id){
         prevDetails = await getJobApplicationbyid(data.id, userId)
       }
-      await updateJobApplication(data);
+      const updated = await updateJobApplication(data);
+      if (!updated) {
+        throw new HttpError('NOT_FOUND', 'Maid profile not found.');
+      }
       const newDetails = await getJobApplicationbyid(data.id, userId)
       const changes = compareObjects(prevDetails, newDetails)
 
@@ -146,7 +150,7 @@ const updateJobApplicationFormService = (data, userId) => {
 
       return resolve(messages.success.UPDATED_SUCCESSFULLY);
     } catch (error) {
-      return reject(error.message);
+      return reject(error);
     }
   });
 };
@@ -169,7 +173,7 @@ const createJobApplicationDashboardService = (data, userId) => {
 
       return resolve(messages.success.ACCOUNT_CREATED);
     } catch (error) {
-      return reject(error.message);
+      return reject(error);
     }
   });
 };

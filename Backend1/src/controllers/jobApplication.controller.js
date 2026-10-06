@@ -28,6 +28,67 @@ const { uploadmultipleImages } = require('../utils/fileUpload/mutifileUpload');
 const logger = require('../config/logger');
 const { logErrorWithSource } = logger;
 const { jobApplicationModel } = require('../models/jobApplication/jobApplication.model');
+const { HttpError } = require('../utils/httpError');
+
+// Multipart forms send these fields as JSON strings. Parses them in place on `data`.
+// A missing field gets `defaults[field]` (pass none on update so existing values are kept).
+// Returns an error message for the first malformed field, or null when all are valid.
+const parseJsonFields = (data, defaults = {}) => {
+  for (const field of ['salary', 'language', 'skills', 'employmentHistory']) {
+    const raw = data[field];
+    if (raw === undefined || raw === null || raw === '') {
+      if (field in defaults) data[field] = defaults[field];
+      else delete data[field];
+      continue;
+    }
+    if (typeof raw !== 'string') continue;
+    try {
+      data[field] = JSON.parse(raw);
+    } catch (error) {
+      return `${field} must be valid JSON`;
+    }
+  }
+  return null;
+};
+
+// Uploads the profile photo and documents (if sent) onto `data`.
+// Bad file types become 400s; storage failures become 502s instead of a generic 500.
+const uploadMaidFiles = async (req, data) => {
+  try {
+    if (req?.files?.profile) {
+      data.profile = await uploadimage(req.files.profile);
+    }
+    if (req?.files?.wordfiles) {
+      data.wordfiles = await uploadmultipleImages(req.files.wordfiles);
+    }
+  } catch (error) {
+    if (error?.message?.startsWith('Invalid file type')) {
+      throw new HttpError('BAD_REQUEST', error.message);
+    }
+    logErrorWithSource(error, { meta: { files: Object.keys(req.files || {}) } });
+    throw new HttpError('BAD_GATEWAY', 'File upload failed. Please try again.');
+  }
+};
+
+// Turns a create/update failure into a response with a status and message the admin panel can show.
+const sendMaidSaveError = (res, req, error) => {
+  if (error instanceof HttpError) {
+    return responseHandler(res, error.status, null, { message: error.message });
+  }
+  if (error?.name === 'ValidationError') {
+    const message = Object.values(error.errors)
+      .map((e) => (e.name === 'CastError' ? `${e.path} has an invalid value` : e.message))
+      .join(', ');
+    return responseHandler(res, 'BAD_REQUEST', null, { message });
+  }
+  if (error?.name === 'CastError') {
+    return responseHandler(res, 'BAD_REQUEST', null, { message: `${error.path} has an invalid value` });
+  }
+  logErrorWithSource(error, { meta: { body: req.body } });
+  return responseHandler(res, 'INTERNAL_SERVER_ERROR', null, {
+    message: 'Could not save the maid profile. Please try again.',
+  });
+};
 
 //Client form that only accepting name mobile email
 const createJobApplicationClientController = (req, res) => {
@@ -164,72 +225,45 @@ const getJobApplicationbyidDashboardFormController = async (req, res) => {
 const updateJobApplicationFormController = async (req, res) => {
   try {
     const data = req.body;
+    const userId = req.user?.user_id;
 
-    const user = req.user;
-    const userId = user?.user_id;
-    data.language = JSON.parse(data.language);
-    data.skills = JSON.parse(data.skills);
-    data.salary = JSON.parse(data.salary)
-    data.employmentHistory = JSON.parse(data.employmentHistory);
-    let profile = req?.files?.profile;
-    let wordfiles = req?.files?.wordfiles;
-    if (profile) {
-      data.profile = await uploadimage(req?.files?.profile || '');
+    // The admin dashboard sends the maid's id as `_id`; older clients send `id`
+    data.id = data.id || data._id;
+    if (!data.id) {
+      throw new HttpError('BAD_REQUEST', 'id is required to update a maid profile.');
     }
 
-    if (wordfiles) {
-      data.wordfiles = await uploadmultipleImages(req?.files?.wordfiles || []);
+    const parseError = parseJsonFields(data);
+    if (parseError) {
+      throw new HttpError('BAD_REQUEST', parseError);
     }
 
-    updateJobApplicationFormService(data, userId)
-      .then((message) => {
-        responseHandler(res, 'CREATED', null, { message });
-      })
-      .catch((message) => {
-        logger.error(message , {meta: {body: req.body}})
-        responseHandler(res, 'BAD_REQUEST', null, { message });
-      });
+    await uploadMaidFiles(req, data);
+
+    const message = await updateJobApplicationFormService(data, userId);
+    responseHandler(res, 'CREATED', null, { message });
   } catch (error) {
-    logErrorWithSource(error, {meta: {body: req.body}})
-    console.log(error, 'this is error');
-
-    responseHandler(res, 'INTERNAL_SERVER_ERROR');
+    sendMaidSaveError(res, req, error);
   }
 };
 
 //creating new job application from adminpanel
 const createJobApplicationDashboardController = async (req, res) => {
   try {
-    let data = req.body;
-    const user = req.user;
-    const userId = user.user_id;
+    const data = req.body;
+    const userId = req.user?.user_id;
 
-    data.salary = JSON.parse(data.salary)
-    data.language = JSON.parse(data.language);
-    data.skills = JSON.parse(data.skills);
-    data.employmentHistory = JSON.parse(data.employmentHistory);
-
-    if (req?.files?.profile) {
-      data.profile = await uploadimage(req?.files?.profile || '');
+    const parseError = parseJsonFields(data, { salary: {}, language: [], skills: [], employmentHistory: [] });
+    if (parseError) {
+      throw new HttpError('BAD_REQUEST', parseError);
     }
 
-    if (req?.files?.wordfiles) {
-      data.wordfiles = await uploadmultipleImages(req?.files?.wordfiles || []);
-    }
+    await uploadMaidFiles(req, data);
 
-    createJobApplicationDashboardService(data, userId)
-      .then((message) => {
-        responseHandler(res, 'CREATED', null, { message });
-      })
-      .catch((message) => {
-        logger.error(message , {meta: {body: req.body}})
-        responseHandler(res, 'BAD_REQUEST', null, { message });
-      });
+    const message = await createJobApplicationDashboardService(data, userId);
+    responseHandler(res, 'CREATED', null, { message });
   } catch (error) {
-    console.error(error);
-    logErrorWithSource(error, {meta: {body: req.body}})
-
-    responseHandler(res, 'INTERNAL_SERVER_ERROR');
+    sendMaidSaveError(res, req, error);
   }
 };
 

@@ -33,6 +33,11 @@ const httpStatus = {
     status: 'Internal Server Error',
     statusCode: 500,
     message: 'Internal server error!'
+  },
+  BAD_GATEWAY: {
+    status: 'Bad Gateway',
+    statusCode: 502,
+    message: 'Upstream service failed!'
   }
 
 }
