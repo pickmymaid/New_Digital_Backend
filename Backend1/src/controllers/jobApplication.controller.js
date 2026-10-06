@@ -408,12 +408,20 @@ const getFeaturedMaidsController = (req, res) => {
   }
 };
 
-const createNewJobController = (req, res) => {
+const createNewJobController = async (req, res) => {
   try {
     const data = req.body;
 
     if (req.files && req.files.image) {
-      data.image = uploadimage(req?.files?.image);
+      try {
+        data.image = await uploadimage(req.files.image);
+      } catch (error) {
+        if (error?.message?.startsWith('Invalid file type')) {
+          return responseHandler(res, 'BAD_REQUEST', null, { message: error.message });
+        }
+        logErrorWithSource(error, {meta: {body: req.body}})
+        return responseHandler(res, 'BAD_GATEWAY', null, { message: 'File upload failed. Please try again.' });
+      }
     }
 
     createNewjobService(data)

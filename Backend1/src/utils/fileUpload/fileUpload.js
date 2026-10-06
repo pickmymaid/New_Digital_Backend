@@ -30,7 +30,9 @@ const uploadimage = async (file) => {
       Key: filepath,
       Body: buffer,
       ContentType: mime.lookup(ext) || "application/octet-stream",
-      CacheControl: "public, max-age=31536000"
+      CacheControl: "public, max-age=31536000",
+      // Profile photos are shown on the public site; Spaces objects are private by default
+      ACL: "public-read"
     })
   );
 
