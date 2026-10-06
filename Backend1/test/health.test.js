@@ -1,6 +1,4 @@
-// Smoke test — boots the real app and hits /health. Runs in CI before
-// the image is built, so a broken import/bootstrap fails the pipeline
-// before anything gets pushed to the registry.
+
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
