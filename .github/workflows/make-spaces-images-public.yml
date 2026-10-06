@@ -1,0 +1,41 @@
+name: Make Spaces images public
+
+# Manual-only. Sets ACL public-read on every image under the prefix in DO Spaces,
+# so photos uploaded while uploads had no ACL (private by default) load on the
+# website and dashboard. PDFs and other documents are left private.
+# Run with dry_run=true first and check the log. Safe to re-run.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Only report private images (changes nothing)'
+        type: boolean
+        default: true
+      prefix:
+        description: 'Folder to scan'
+        type: string
+        default: 'images/'
+
+jobs:
+  acl:
+    name: Make images public
+    runs-on: ubuntu-latest
+    env:
+      DO_SPACES_REGION: ${{ secrets.DO_SPACES_REGION }}
+      DO_SPACES_BUCKET: ${{ secrets.DO_SPACES_BUCKET }}
+      DO_SPACES_ACCESS_KEY: ${{ secrets.DO_SPACES_ACCESS_KEY }}
+      DO_SPACES_SECRET_KEY: ${{ secrets.DO_SPACES_SECRET_KEY }}
+      PREFIX: ${{ inputs.prefix }}
+      APPLY: ${{ !inputs.dry_run }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install S3 client
+        run: npm install --no-save --prefix .github/scripts @aws-sdk/client-s3
+
+      - name: Set image ACLs
+        run: node .github/scripts/make-spaces-images-public.js
