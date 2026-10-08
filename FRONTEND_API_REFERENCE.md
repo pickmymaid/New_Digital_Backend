@@ -132,6 +132,18 @@ the private service network. See `ARCHITECTURE.md`.
 | POST | `/api/v1/contact/` | none | public form submit |
 | GET | `/api/v1/contact/` | JWT | SA/A — list submissions |
 
+## Backend1 — Skills
+
+Admin-managed catalog of maid skills. Maid profiles store skills by **name** (`skills: string[]`), so use `name` as the value.
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/api/v1/skills/` | none | active skills, sorted by name → `data.skills[]` (`_id`, `name`, `is_active`) |
+| GET | `/api/v1/skills/admin` | JWT | SA/A — all skills, including inactive |
+| POST | `/api/v1/skills/` | JWT | SA/A — body `{ name, is_active? }`; 409 if the name exists (case-insensitive) |
+| PATCH | `/api/v1/skills/:id` | JWT | SA/A — body `{ name?, is_active? }`; a rename is applied to every maid profile with the old name (`data.maidsUpdated`) |
+| DELETE | `/api/v1/skills/:id` | JWT | SA/A — removes from the catalog only; maid profiles keep it (`data.maidsUsing`) |
+
 ## Backend1 — Analytics
 
 | Method | Path | Auth | Notes |

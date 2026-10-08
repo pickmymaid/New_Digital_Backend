@@ -29,6 +29,11 @@ const httpStatus = {
     statusCode: 404,
     message: 'Resource not founded!'
   },
+  CONFLICT: {
+    status: 'Conflict',
+    statusCode: 409,
+    message: 'Resource already exists!'
+  },
   INTERNAL_SERVER_ERROR: {
     status: 'Internal Server Error',
     statusCode: 500,

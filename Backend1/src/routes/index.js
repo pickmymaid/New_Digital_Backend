@@ -6,6 +6,7 @@ const blogRoutes = require('./blog.routes');
 const maidsV2Routes = require('./v2/maids.routes');
 const analyticsRoutes = require('./analytics.routes');
 const testRoutes = require('./test.routes');
+const skillRoutes = require('./skill.routes');
 
 module.exports = {
   adminRoutes,
@@ -16,4 +17,5 @@ module.exports = {
   maidsV2Routes,
   analyticsRoutes,
   testRoutes,
+  skillRoutes,
 };

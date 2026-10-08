@@ -17,7 +17,8 @@ const path = require('path');
 const { connectDatabase } = require('./config/databaseConnection');
 const passport = require('./config/passportSession'); // session decode only, no OAuth strategies here
 const { setupSwagger } = require('./config/swagger');
-const { adminRoutes, jobRoutes, jobFrontendRoutes, contactRoutes, blogRoutes, maidsV2Routes, analyticsRoutes, testRoutes } = require('./routes');
+const { adminRoutes, jobRoutes, jobFrontendRoutes, contactRoutes, blogRoutes, maidsV2Routes, analyticsRoutes, testRoutes, skillRoutes } = require('./routes');
+const { seedDefaultSkillsService } = require('./services/skill.service');
 
 const app = express();
 const ONE_YEAR = 365 * 24 * 60 * 60 * 1000;
@@ -63,7 +64,9 @@ app.use(express.json({ limit: '50mb' }));
 app.use('*/images', express.static('./public/uploads'));
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
-connectDatabase();
+connectDatabase().then(() =>
+  seedDefaultSkillsService().catch((error) => console.error('Skill seeding failed:', error.message))
+);
 
 app.use(cors({
   origin: true,
@@ -78,6 +81,7 @@ app.use('/api/v1/job', jobRoutes);
 app.use('/api/v1/jobfrontend', jobFrontendRoutes);
 app.use('/api/v1/contact', contactRoutes);
 app.use('/api/v1/blog', blogRoutes);
+app.use('/api/v1/skills', skillRoutes);
 app.use('/api/v2/maids', maidsV2Routes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/test', testRoutes);

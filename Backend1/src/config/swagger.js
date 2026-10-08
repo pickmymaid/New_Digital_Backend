@@ -32,6 +32,7 @@ const swaggerOptions = {
       { name: 'Payment V2', description: 'Payment creation, acknowledgement, and invoice generation' },
       { name: 'Blog V1', description: 'Blog post creation, editing, comments, and likes' },
       { name: 'Contact V1', description: 'Contact form submissions' },
+      { name: 'Skills V1', description: 'Admin-managed catalog of maid skills' },
       { name: 'Analytics V1', description: 'Category usage and email click analytics' },
       { name: 'Internal', description: 'Internal/debug endpoints' },
     ],

@@ -88,6 +88,13 @@ spec:
                 name: backend1
                 port:
                   number: 8080
+          - path: /api/v1/skills
+            pathType: Prefix
+            backend:
+              service:
+                name: backend1
+                port:
+                  number: 8080
           - path: /api/v2/maids
             pathType: Prefix
             backend:
