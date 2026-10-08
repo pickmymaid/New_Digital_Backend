@@ -15,6 +15,7 @@ const cookieParser = require('cookie-parser');
 const passport = require('passport');
 
 const { connectDatabase } = require('./config/databaseConnection');
+const { fixCustomerAccountIdIndex } = require('./migrations/customerAccountIdIndex');
 require('./config/passport'); // registers Google/Facebook/Apple/Local strategies (auth) + serialize/deserialize (shared by payment routes too)
 const { authRoutes, authRoutesV2, paymentRoutes, paymentV2Routes, internalRoutes } = require('./routes');
 
@@ -64,7 +65,9 @@ app.use(cors({
   credentials: true,
 }));
 
-connectDatabase();
+connectDatabase().then(() =>
+  fixCustomerAccountIdIndex().catch((error) => console.error('customers.account_id index fix failed:', error.message))
+);
 
 app.get('/', (req, res) => res.send('Pickmymaid Backend2 (auth + payment)'));
 app.get('/health', (req, res) => res.status(200).send({ status: 'ok', service: 'backend2-auth-payment' }));

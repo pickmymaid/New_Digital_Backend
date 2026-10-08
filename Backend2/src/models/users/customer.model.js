@@ -18,9 +18,10 @@ const customerSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  // OAuth (Google/Apple) account id; email signups don't have one. Uniqueness
+  // is enforced by the partial index below, not `unique: true`.
   account_id:{
     type: String,
-    unique: true,
   },
   type: {
     type: String,
@@ -46,6 +47,12 @@ const customerSchema = new mongoose.Schema({
 }, { timestamps: true })
 
 customerSchema.index({ createdAt: -1 });
+// Unique only when set — a plain unique index treats every customer without
+// an account_id as account_id: null, so the second email signup hit E11000.
+customerSchema.index(
+  { account_id: 1 },
+  { unique: true, partialFilterExpression: { account_id: { $type: 'string' } } }
+);
 
 const CustomerModel = mongoose.model('Customer', customerSchema)
 
