@@ -1,5 +1,6 @@
 const adminRoutes = require('./admin.routes');
 const jobRoutes = require('./jobapplication.routes');
+const jobFrontendRoutes = require('./jobfrontend.routes');
 const contactRoutes = require('./contact.routes');
 const blogRoutes = require('./blog.routes');
 const maidsV2Routes = require('./v2/maids.routes');
@@ -9,6 +10,7 @@ const testRoutes = require('./test.routes');
 module.exports = {
   adminRoutes,
   jobRoutes,
+  jobFrontendRoutes,
   contactRoutes,
   blogRoutes,
   maidsV2Routes,

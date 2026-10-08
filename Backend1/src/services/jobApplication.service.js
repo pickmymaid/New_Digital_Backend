@@ -8,6 +8,7 @@ const {
   changeStatusofJobApplication,
   createJobApplication,
   createJobApplicationClientForm,
+  createJobApplicationFrontend,
   createNewJob,
   deleteJobApplication,
   deleteNewJob,
@@ -27,6 +28,7 @@ const {
   uploadMaidHistory,
 } = require('../queries/jobapplication.queries');
 const { compareObjects } = require('../utils/compareObject/compareObject');
+const { sanitizeRichText } = require('../utils/sanitizeHtml/sanitizeHtml');
 const messages = require('../utils/constants/messages');
 const { HttpError } = require('../utils/httpError');
 
@@ -170,6 +172,59 @@ const createJobApplicationDashboardService = (data, userId) => {
       await uploadMaidHistory(history)
 
       triggerMaidRevalidation(maidDetails?.ref_number);
+
+      return resolve(messages.success.ACCOUNT_CREATED);
+    } catch (error) {
+      return reject(error);
+    }
+  });
+};
+
+// Fields a job seeker may set from the public /register?as=job form — every
+// field of the admin Add Maid form plus the video. Admin-only fields (status,
+// is_assured, ref_number, ...) are dropped; `references` is self-reported and
+// checked by the admin before verifying (the profile is saved as status 0).
+const FRONTEND_FORM_FIELDS = [
+  'name', 'email', 'mobile', 'age', 'nationality', 'marital_status', 'religion',
+  'service', 'location', 'current_location', 'uae_no', 'whatsapp_no', 'botim_number',
+  'youtube_link', 'visa_status', 'visa_expire', 'available_from', 'day_of',
+  'option', 'availability', 'references', 'is_negotiable_salary', 'salary', 'skills', 'language',
+  'employmentHistory', 'education', 'notes',
+  'profile', 'wordfiles', 'video',
+];
+
+// Clone of createJobApplicationDashboardService for the public website form.
+// Saved unapproved (status 0), so no revalidation until an admin verifies it.
+const createJobApplicationFrontendService = (data) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const allowed = {};
+      FRONTEND_FORM_FIELDS.forEach((field) => {
+        if (data[field] !== undefined) allowed[field] = data[field];
+      });
+
+      // The application date is always the day it was submitted, whatever the client sends.
+      allowed.date = new Date();
+
+      // Rich-text fields from an untrusted public form; the admin panel renders them as HTML.
+      allowed.notes = sanitizeRichText(allowed.notes);
+      if (Array.isArray(allowed.employmentHistory)) {
+        allowed.employmentHistory = allowed.employmentHistory.map((job) => ({
+          ...job,
+          job_description: sanitizeRichText(job?.job_description),
+        }));
+      }
+
+      let maidDetails = await createJobApplicationFrontend(allowed);
+      maidDetails = maidDetails.toObject()
+      const changes = compareObjects({}, maidDetails);
+      const history = {
+        revision: 0,
+        maid_id: maidDetails?._id?.toString(),
+        updated_by: 'website',
+        changes
+      }
+      await uploadMaidHistory(history)
 
       return resolve(messages.success.ACCOUNT_CREATED);
     } catch (error) {
@@ -374,6 +429,7 @@ const listAllWishlistService = (user_id) => {
 
 module.exports = {
   postJobApplicationClientFormService,
+  createJobApplicationFrontendService,
   getJobApplicationFormService,
   getAllJobApplicationFormService,
   getVerifiedAndReferenceApplicationFormService,

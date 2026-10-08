@@ -67,6 +67,13 @@ spec:
                 name: backend1
                 port:
                   number: 8080
+          - path: /api/v1/jobfrontend
+            pathType: Prefix
+            backend:
+              service:
+                name: backend1
+                port:
+                  number: 8080
           - path: /api/v1/contact
             pathType: Prefix
             backend:

@@ -3,10 +3,9 @@ const { PutObjectCommand } = require("@aws-sdk/client-s3");
 const mime = require("mime-types");
 const { spaces } = require("../../config/spaces.client");
 
-
-const uploadimage = async (file) => {
-  const allowedFileTypes = ["jpg", "jpeg", "png", "webp"];
-
+// Uploads an express-fileupload file to Spaces under `<folder>/<YYYY-MM-DD>/`
+// and returns the object key (stored in DB; the frontend prefixes the CDN URL).
+const uploadToSpaces = async (file, allowedFileTypes, folder) => {
   // YYYY-MM-DD (same as your code)
   const newdate = new Date().toLocaleDateString("fr-CA");
 
@@ -19,7 +18,7 @@ const uploadimage = async (file) => {
   }
 
   const filename = `${Date.now()}-${uuidv4()}.${ext}`;
-  const filepath = `images/${newdate}/${filename}`;
+  const filepath = `${folder}/${newdate}/${filename}`;
 
   // file.data is available in express-fileupload
   const buffer = file.data;
@@ -36,10 +35,13 @@ const uploadimage = async (file) => {
     })
   );
 
-  // FULL CDN URL (store this in DB)
-  const fileUrl = `${filepath}`;
-
-  return fileUrl;
+  return filepath;
 };
 
-module.exports = { uploadimage };
+const uploadimage = (file) =>
+  uploadToSpaces(file, ["jpg", "jpeg", "png", "webp"], "images");
+
+const uploadvideo = (file) =>
+  uploadToSpaces(file, ["mp4", "mov", "webm", "m4v"], "videos");
+
+module.exports = { uploadimage, uploadvideo };

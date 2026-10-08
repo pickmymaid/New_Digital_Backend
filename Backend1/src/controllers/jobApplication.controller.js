@@ -3,6 +3,7 @@ const {
   assureJobApplicationService,
   changeAvailabilityJobApplicationService,
   createJobApplicationDashboardService,
+  createJobApplicationFrontendService,
   createNewjobService,
   deleteJobApplicationService,
   deleteNewjobService,
@@ -23,7 +24,7 @@ const {
   updateJobApplicationFormService,
   verifyJobApplicationService,
 } = require('../services/jobApplication.service');
-const { uploadimage } = require('../utils/fileUpload/fileUpload');
+const { uploadimage, uploadvideo } = require('../utils/fileUpload/fileUpload');
 const { uploadmultipleImages } = require('../utils/fileUpload/mutifileUpload');
 const logger = require('../config/logger');
 const { logErrorWithSource } = logger;
@@ -261,6 +262,43 @@ const createJobApplicationDashboardController = async (req, res) => {
     await uploadMaidFiles(req, data);
 
     const message = await createJobApplicationDashboardService(data, userId);
+    responseHandler(res, 'CREATED', null, { message });
+  } catch (error) {
+    sendMaidSaveError(res, req, error);
+  }
+};
+
+// Public clone of createJobApplicationDashboardController for the website's
+// /register?as=job form: same fields and files, plus an intro video.
+const createJobApplicationFrontendController = async (req, res) => {
+  try {
+    const data = req.body;
+
+    const parseError = parseJsonFields(data, { salary: {}, language: [], skills: [], employmentHistory: [] });
+    if (parseError) {
+      throw new HttpError('BAD_REQUEST', parseError);
+    }
+
+    // express-fileupload silently truncates files over its size limit instead of rejecting them
+    const tooLarge = Object.values(req.files || {}).flat().some((file) => file.truncated);
+    if (tooLarge) {
+      throw new HttpError('BAD_REQUEST', 'File is too large. Maximum size is 50 MB.');
+    }
+
+    await uploadMaidFiles(req, data);
+    if (req?.files?.video) {
+      try {
+        data.video = await uploadvideo(req.files.video);
+      } catch (error) {
+        if (error?.message?.startsWith('Invalid file type')) {
+          throw new HttpError('BAD_REQUEST', error.message);
+        }
+        logErrorWithSource(error, { meta: { files: ['video'] } });
+        throw new HttpError('BAD_GATEWAY', 'Video upload failed. Please try again.');
+      }
+    }
+
+    const message = await createJobApplicationFrontendService(data);
     responseHandler(res, 'CREATED', null, { message });
   } catch (error) {
     sendMaidSaveError(res, req, error);
@@ -536,6 +574,7 @@ const listAllWishlist = (req, res) => {
 
 module.exports = {
   createJobApplicationClientController,
+  createJobApplicationFrontendController,
   getJobApplicationFormController,
   getAllJobApplicationFormController,
   getVerifiedAndReferenceJobApplicationFormController,

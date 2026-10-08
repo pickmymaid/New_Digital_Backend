@@ -17,7 +17,7 @@ const path = require('path');
 const { connectDatabase } = require('./config/databaseConnection');
 const passport = require('./config/passportSession'); // session decode only, no OAuth strategies here
 const { setupSwagger } = require('./config/swagger');
-const { adminRoutes, jobRoutes, contactRoutes, blogRoutes, maidsV2Routes, analyticsRoutes, testRoutes } = require('./routes');
+const { adminRoutes, jobRoutes, jobFrontendRoutes, contactRoutes, blogRoutes, maidsV2Routes, analyticsRoutes, testRoutes } = require('./routes');
 
 const app = express();
 const ONE_YEAR = 365 * 24 * 60 * 60 * 1000;
@@ -75,6 +75,7 @@ app.get('/health', (req, res) => res.status(200).send({ status: 'ok', service: '
 
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/job', jobRoutes);
+app.use('/api/v1/jobfrontend', jobFrontendRoutes);
 app.use('/api/v1/contact', contactRoutes);
 app.use('/api/v1/blog', blogRoutes);
 app.use('/api/v2/maids', maidsV2Routes);

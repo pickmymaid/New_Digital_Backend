@@ -8,4 +8,8 @@ const jobApplicationClientFormSchema = yup.object({
   email: yup.string().matches(regularExpressions.isEmail, responseMessages.validity('Email address')),
 });
 
-module.exports = { jobApplicationClientFormSchema };
+const jobApplicationFrontendFormSchema = jobApplicationClientFormSchema.shape({
+  email: yup.string().required(responseMessages.required('Email address')).matches(regularExpressions.isEmail, responseMessages.validity('Email address')),
+});
+
+module.exports = { jobApplicationClientFormSchema, jobApplicationFrontendFormSchema };

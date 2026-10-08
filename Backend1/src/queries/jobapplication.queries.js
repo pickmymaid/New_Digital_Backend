@@ -231,6 +231,17 @@ const createJobApplication = async (body) => {
   return await Dashboard.save();
 };
 
+// Public /register?as=job form: always saved as "just added" (status 0) until an admin verifies it
+const createJobApplicationFrontend = async (body) => {
+  const frontendForm = new jobApplicationModel({
+    ref_number: generateUniqueId(),
+    word_file: body.wordfiles,
+    ...body,
+    status: 0,
+  });
+  return await frontendForm.save();
+};
+
 const changeStatusofJobApplication = async (id, status) => {
   let find = { _id: id };
 
@@ -511,6 +522,7 @@ const getAllFavoriteMaids = async(user_id) => {
 
 module.exports = {
   createJobApplicationClientForm,
+  createJobApplicationFrontend,
   getJobApplication,
   getAlljobApplication,
   uploadMaidHistory,
