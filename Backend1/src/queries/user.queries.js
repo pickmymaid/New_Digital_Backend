@@ -45,7 +45,9 @@ const getAllCustomers = async (
   // Build search condition
   const matchStage = {};
   if (search && search.trim() !== "") {
-    const regex = new RegExp(search.trim(), "i");
+    // Escape regex metacharacters so input like "(" or "+" doesn't throw
+    const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(escaped, "i");
     matchStage.$or = [
       { first_name: regex },
       { last_name: regex },

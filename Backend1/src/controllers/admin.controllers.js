@@ -56,9 +56,10 @@ const teamMemberRoleChangeController = async (req, res) => {
 
 const getCustomersController = async (req, res) => {
   try {
-    let page = parseInt((req.query.page));
-    let limit = parseInt(req.query.limit);
-    let search = req.query.search || "";
+    // parseInt of a missing param is NaN, which MongoDB rejects in $skip
+    let page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = 100; // fixed page size
+    let search = typeof req.query.search === "string" ? req.query.search : "";
     getCustomersService(page, limit, search)
       .then((data) => {
         responseHandler(res, 'OK', { customer: data });
