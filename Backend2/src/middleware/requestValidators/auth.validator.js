@@ -6,7 +6,7 @@ const CustomerRegisterSchema = yup.object({
   first_name: yup.string().min(3, responseMessages.min('First Name', 3)).required(responseMessages.required('First Name')),
   last_name: yup.string().min(2, responseMessages.min('Last Name', 2)),
   email: yup.string().matches(regularExpressions.isEmail, responseMessages.validity('Email address')).required(responseMessages.required('Email')),
-  password: yup.string().min(6, responseMessages.min('Password', 6)).max(16, responseMessages.max('Password', 16)).required(responseMessages.required('Password'))
+  password: yup.string().min(6, responseMessages.min('Password', 6)).max(30, responseMessages.max('Password', 30)).required(responseMessages.required('Password'))
 })
 
 const CustomerVerifyOtpSchema = yup.object({
@@ -28,7 +28,7 @@ const CustomerForgetPasswordSchema = yup.object({
 })
 
 const CustomerResetPasswordSchema = yup.object({
-  password: yup.string().min(6, responseMessages.min('Password', 6)).max(16, responseMessages.max('Password', 16)).required(responseMessages.required('Password')),
+  password: yup.string().min(6, responseMessages.min('Password', 6)).max(30, responseMessages.max('Password', 30)).required(responseMessages.required('Password')),
   confirm_password: yup.string().required('Confirm Password is required')
 })
 
@@ -37,7 +37,7 @@ const AdminRegisterSchema = yup.object({
   email: yup.string().matches(regularExpressions.isEmail, responseMessages.validity('Email address')).required(responseMessages.required('Email')),
   is_super_admin: yup.boolean().required(),
   role: yup.string().oneOf(['A', 'Marketing', 'Admin']).required(),
-  password: yup.string().min(6, responseMessages.min('Password', 6)).max(16, responseMessages.max('Password', 16)).required(responseMessages.required('Password')),
+  password: yup.string().min(6, responseMessages.min('Password', 6)).max(30, responseMessages.max('Password', 30)).required(responseMessages.required('Password')),
   confirm_password: yup.string().required('Confirm Password is required')
 })
 

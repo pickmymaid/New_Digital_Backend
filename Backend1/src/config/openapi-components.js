@@ -38,7 +38,7 @@ const openApiComponents = {
         first_name: { type: 'string', minLength: 3, example: 'Jane' },
         last_name: { type: 'string', minLength: 2, example: 'Doe' },
         email: { type: 'string', format: 'email', example: 'jane@example.com' },
-        password: { type: 'string', minLength: 4, maxLength: 16, example: 'secret123' },
+        password: { type: 'string', minLength: 6, maxLength: 30, example: 'secret123' },
         emirate_of_residence: {type: 'string', example: 'Abu Dhabi'},
         position_required: {type: 'string', example: 'Cook'}
       },
@@ -48,7 +48,7 @@ const openApiComponents = {
       required: ['email', 'password'],
       properties: {
         email: { type: 'string', format: 'email', example: 'jane@example.com' },
-        password: { type: 'string', minLength: 6, maxLength: 16, example: 'secret123' },
+        password: { type: 'string', example: 'secret123' },
       },
     },
     CustomerForgetPasswordRequest: {
@@ -62,7 +62,7 @@ const openApiComponents = {
       type: 'object',
       required: ['password', 'confirm_password'],
       properties: {
-        password: { type: 'string', minLength: 4, maxLength: 16, example: 'newSecret123' },
+        password: { type: 'string', minLength: 6, maxLength: 30, example: 'newSecret123' },
         confirm_password: { type: 'string', example: 'newSecret123' },
       },
     },
