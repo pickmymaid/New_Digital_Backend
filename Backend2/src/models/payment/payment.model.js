@@ -37,6 +37,17 @@ const paymentSchema = new mongoose.Schema(
     },
     paymentDate: {
       type: Date
+    },
+    // Charged amount in fils (AED * 100), after any coupon. Older records
+    // don't have it — fall back to getSubscriptionAmount(type) for those.
+    amount: {
+      type: Number,
+    },
+    coupon_code: {
+      type: String,
+    },
+    discount_percent: {
+      type: Number,
     }
   },
   { timestamps: true }

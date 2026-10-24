@@ -1,6 +1,7 @@
 const axios = require("axios");
 
-const createPaymentWithToken = async (accessToken, type, customer) => {
+// amount is in fils (AED * 100), already discounted by any coupon.
+const createPaymentWithToken = async (accessToken, amount, customer) => {
     const outletRef = process.env.PG_OUTLET_REFERENCE;
     const baseURL = process.env.PG_BASE_URL;
 
@@ -8,7 +9,7 @@ const createPaymentWithToken = async (accessToken, type, customer) => {
         action: 'PURCHASE',
         amount: {
             currencyCode: 'AED',
-            value: type == 0 ? 35000 : type == 1 ? 49500 : type === 3? 19500 :89900
+            value: amount
         },
         emailAddress: customer?.email,
         merchantAttributes: {

@@ -120,6 +120,7 @@ const openApiComponents = {
         amount: { type: 'number', example: 299 },
         type: { type: 'integer', description: '0=Basic, 1=Standard, 2=Premium, 3=Special', example: 1 },
         ref: { type: 'string', example: 'REF-12345' },
+        coupon_code: { type: 'string', example: 'WELCOME10', description: 'Optional. Rejected with 400/404 if invalid, expired or already used.' },
       },
     },
     MaidProfile: {
@@ -201,6 +202,9 @@ const openApiComponents = {
         status: { type: 'integer', description: '1=active, 2=expired', example: 1 },
         expiryDate: { type: 'string', format: 'date-time' },
         paymentDate: { type: 'string', format: 'date-time' },
+        amount: { type: 'integer', description: 'Charged amount in fils (AED * 100), after any coupon. Missing on older records.', example: 31500 },
+        coupon_code: { type: 'string', example: 'WELCOME10' },
+        discount_percent: { type: 'integer', example: 10 },
         createdAt: { type: 'string', format: 'date-time' },
       },
     },

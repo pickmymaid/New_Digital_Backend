@@ -5,6 +5,7 @@ const {
   getUserPaymentDetailsController,
   manualPaymentController,
   verifyPaymentTokenController,
+  updatePaymentController,
 } = require('../controllers/payment.controller');
 const { validateJwtToken } = require('../middleware/jwtValidator');
 const { roleValidator } = require('../middleware/roleValidator');
@@ -177,5 +178,54 @@ router.post('/manual-verify', manualPaymentController);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get('/payment-details', validateUser, getUserPaymentDetailsController);
+
+/**
+ * @openapi
+ * /api/v1/payment/{id}:
+ *   patch:
+ *     tags: [Payment V1]
+ *     summary: Edit a payment's expiry date or status (admin)
+ *     description: >
+ *       Requires SA role. Use it to extend or shorten a subscription, or to
+ *       reactivate/suspend it. Status 1 (active) requires an expiry date in
+ *       the future — otherwise the expiry job would flip it straight back to 2.
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *         description: Payment _id
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               expiryDate: { type: string, format: date-time, example: '2026-12-31T23:59:00.000Z' }
+ *               status: { type: integer, enum: [0, 1, 2], description: '0=pending, 1=active, 2=expired/suspended' }
+ *     responses:
+ *       200:
+ *         description: Payment updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     payment: { $ref: '#/components/schemas/PaymentRecord' }
+ *       400:
+ *         description: Invalid id, date or status
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Payment not found
+ */
+router.patch('/:id', validateJwtToken, roleValidator(['SA']), updatePaymentController);
 
 module.exports = router;

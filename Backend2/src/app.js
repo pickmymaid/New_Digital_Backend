@@ -17,7 +17,8 @@ const passport = require('passport');
 const { connectDatabase } = require('./config/databaseConnection');
 const { fixCustomerAccountIdIndex } = require('./migrations/customerAccountIdIndex');
 require('./config/passport'); // registers Google/Facebook/Apple/Local strategies (auth) + serialize/deserialize (shared by payment routes too)
-const { authRoutes, authRoutesV2, paymentRoutes, paymentV2Routes, internalRoutes } = require('./routes');
+const { authRoutes, authRoutesV2, paymentRoutes, paymentV2Routes, internalRoutes, couponRoutes } = require('./routes');
+const { seedDefaultCouponService } = require('./services/coupon.service');
 
 const app = express();
 const ONE_YEAR = 365 * 24 * 60 * 60 * 1000;
@@ -65,9 +66,10 @@ app.use(cors({
   credentials: true,
 }));
 
-connectDatabase().then(() =>
-  fixCustomerAccountIdIndex().catch((error) => console.error('customers.account_id index fix failed:', error.message))
-);
+connectDatabase().then(() => {
+  fixCustomerAccountIdIndex().catch((error) => console.error('customers.account_id index fix failed:', error.message));
+  seedDefaultCouponService().catch((error) => console.error('Coupon seeding failed:', error.message));
+});
 
 app.get('/', (req, res) => res.send('Pickmymaid Backend2 (auth + payment)'));
 app.get('/health', (req, res) => res.status(200).send({ status: 'ok', service: 'backend2-auth-payment' }));
@@ -78,6 +80,8 @@ app.use('/api/v1/auth/email-assets', express.static(path.join(__dirname, 'assets
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v2/auth', authRoutesV2);
+// Before /api/v1/payment so its PATCH /:id route never sees "coupons".
+app.use('/api/v1/payment/coupons', couponRoutes);
 app.use('/api/v1/payment', paymentRoutes);
 app.use('/api/v2/payment', paymentV2Routes);
 // Not exposed via nginx/Ingress — cluster/network-internal calls only

@@ -203,6 +203,11 @@ const getPayments = async (page, limit, search) => {
         expiryDate: 1,
         createdAt: 1,
         updatedAt: '$paymentDate',
+        paymentDate: 1,
+        is_paid: 1,
+        amount: 1,
+        coupon_code: 1,
+        discount_percent: 1,
         name: '$Customers.first_name',
         email: '$Customers.email',
         mobile: '$Customers.phone',
@@ -263,6 +268,17 @@ const getPaymentsByUserID = async (userID) => {
   }
 };
 
+const getPaymentById = async (id) => {
+  return await paymentModel.findById(id);
+};
+
+// updateOne, not save(): the pre-save hook would silently flip status to 2
+// when the expiry is in the past, and the service already validates that.
+const updatePaymentById = async (id, changes) => {
+  await paymentModel.updateOne({ _id: id }, { $set: changes });
+  return await paymentModel.findById(id);
+};
+
 const manualverifyToken = async (body) => {
   try {
     const parser = new xml2js.Parser();
@@ -316,4 +332,6 @@ module.exports = {
   getPayments,
   getPaymentsByUserID,
   manualverifyToken,
+  getPaymentById,
+  updatePaymentById,
 };

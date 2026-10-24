@@ -7,22 +7,40 @@ const { generateAccessToken } = require("../../utils/generatePaymentAccessToken/
 const { recieptBody } = require("../../utils/mailBody/reciept");
 const { sendMail } = require("../../utils/sendMail/sendMail");
 const { verifyPaymentWithCred } = require("../../utils/verifyPayment/verifyPayment");
-const { getSubscriptionAmount, getSubscriptionPlan } = require("../../utils/constants/subscriptionAmounts");
+const { getSubscriptionAmount, getLegacySubscriptionAmount, getSubscriptionPlan } = require("../../utils/constants/subscriptionAmounts");
 const logger = require("../../config/logger");
 const { sendSesEmailWithAttachment } = require("../../utils/sendMail/sendSESMail");
 const {inspect} = require('util');
+const { applyDiscount, findUsableCouponService } = require("../coupon.service");
 
-const createPaymentService = (type, user_id) => {
+// Receipt line, e.g. "Basic Plan (WELCOME10 - 10% off)".
+const receiptPlanName = (payment) => {
+    const plan = getSubscriptionPlan(payment.type);
+    return payment.coupon_code ? `${plan} (${payment.coupon_code} - ${payment.discount_percent}% off)` : plan;
+}
+
+// Records created before coupons existed have no stored amount.
+const chargedAmount = (payment) => payment.amount ?? getLegacySubscriptionAmount(payment.type);
+
+const createPaymentService = (type, user_id, coupon_code) => {
     return new Promise(async (resolve, reject) => {
         try{
+            const coupon = coupon_code ? await findUsableCouponService(coupon_code, user_id) : null;
+            const amount = applyDiscount(getSubscriptionAmount(type), coupon?.discount_percent);
+
             const accessToken = await generateAccessToken();
             const customer = await getCustomerWithID(user_id);
-            const response = await createPaymentWithToken(accessToken, type, customer)
+            const response = await createPaymentWithToken(accessToken, amount, customer)
             const paymentCredentials = {
                 transactionToken: accessToken,
                 transRef: response?.reference,
                 type,
                 user_id,
+                amount,
+            }
+            if(coupon){
+                paymentCredentials.coupon_code = coupon.code;
+                paymentCredentials.discount_percent = coupon.discount_percent;
             }
             await savePayment(paymentCredentials);
 
@@ -70,7 +88,7 @@ const verifyPaymentService = (ref, user_id) => {
                     billAddress += `+${user?.phone}`
                 }
 
-                const template = await recieptTemplate(billAddress,response.ref,paymentPlan,`${startDate} to ${expiryDate}`,getSubscriptionAmount(response.type) / 100, response?.reciept, startDate);
+                const template = await recieptTemplate(billAddress,response.ref,receiptPlanName(response),`${startDate} to ${expiryDate}`,chargedAmount(response) / 100, response?.reciept, startDate);
                 sendSesEmailWithAttachment(
                     user?.email,
                     'Pickmymaid Subscription Confirmation and Receipt',
@@ -104,14 +122,13 @@ const getInvoice = (ref, user_id) => {
         try{
             const details = await getPaymentDetails(ref,user_id);
             if(details?.[0]){
-                const paymentPlan = getSubscriptionPlan(details[0].type);
                 const startDate = moment(details[0].paymentDate).format('DD/MM/YYYY');
                 const expiryDate = moment(details[0].expiryDate).format('DD/MM/YYYY');
                 let billAddress = `${details[0]?.customer?.first_name}\n${details[0]?.customer?.email}\n`
                 if(details[0]?.customer.phone){
                     billAddress += `+${details[0]?.customer?.phone}`
                 }
-                const template = await recieptTemplate(billAddress,details[0].transRef,paymentPlan,`${startDate} to ${expiryDate}`,getSubscriptionAmount(details[0].type) / 100, details[0]?.reciept_number, startDate);
+                const template = await recieptTemplate(billAddress,details[0].transRef,receiptPlanName(details[0]),`${startDate} to ${expiryDate}`,chargedAmount(details[0]) / 100, details[0]?.reciept_number, startDate);
                 return resolve(template.buffer)
             }
 

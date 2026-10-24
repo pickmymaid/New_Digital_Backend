@@ -87,7 +87,10 @@ const verifyPayment = async(ref, user_id) => {
             ref: paymentDoc?.transRef,
             expiryDate,
             paymentDate,
-            status: 1
+            status: 1,
+            amount: paymentDoc?.amount,
+            coupon_code: paymentDoc?.coupon_code,
+            discount_percent: paymentDoc?.discount_percent
         }
     }else{
         return {
@@ -96,7 +99,10 @@ const verifyPayment = async(ref, user_id) => {
             ref: paymentDoc?.transRef,
             expiryDate: paymentDoc?.expiryDate,
             paymentDate: paymentDoc?.paymentDate,
-            status: paymentDoc?.status
+            status: paymentDoc?.status,
+            amount: paymentDoc?.amount,
+            coupon_code: paymentDoc?.coupon_code,
+            discount_percent: paymentDoc?.discount_percent
         }
     }
 

@@ -3,6 +3,7 @@ const authRoutesV2 = require('./v2/auth.routes');
 const paymentRoutes = require('./payment.routes');
 const paymentV2Routes = require('./v2/payment.routes');
 const internalRoutes = require('./internal.routes');
+const couponRoutes = require('./coupon.routes');
 
 module.exports = {
   authRoutes,
@@ -10,4 +11,5 @@ module.exports = {
   paymentRoutes,
   paymentV2Routes,
   internalRoutes,
+  couponRoutes,
 };

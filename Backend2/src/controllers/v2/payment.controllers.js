@@ -7,15 +7,20 @@ const { recieptBody } = require("../../utils/mailBody/reciept");
 const logger = require("../../config/logger");
 const { logErrorWithSource } = logger;
 const { sendSesEmailWithAttachment } = require("../../utils/sendMail/sendSESMail");
+const { HttpError } = require("../../utils/httpError");
 
 const createPaymentController = async (req, res) => {
     const {body} = req;
     const user = req.user
-    createPaymentService(body?.type, user?._id)
+    createPaymentService(body?.type, user?._id, body?.coupon_code)
         .then((data) => {
             responseHandler(res,'OK',data)
         })
         .catch((error) => {
+            // Invalid/expired/used coupon — tell the customer instead of a 500.
+            if(error instanceof HttpError){
+                return responseHandler(res, error.status, null, {message: error.message})
+            }
             logErrorWithSource(error , {meta: {body: req.body}})
             responseHandler(res,'INTERNAL_SERVER_ERROR',error)
         })

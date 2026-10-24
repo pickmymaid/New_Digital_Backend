@@ -1,6 +1,8 @@
 const { responseHandler } = require('../utils/responseHandler/responseHandler');
-const { generatePaymentTokenService, getPaymentsService, getUserPaymentDetails, manualVerifyPaymentService, verifyPaymentTokenService } = require('../services/payment.service');
+const { generatePaymentTokenService, getPaymentsService, getUserPaymentDetails, manualVerifyPaymentService, verifyPaymentTokenService, updatePaymentService } = require('../services/payment.service');
 const { validateJwtToken } = require('../utils/validateJWT/validateJWT');
+const { HttpError } = require('../utils/httpError');
+const messages = require('../utils/constants/messages');
 const logger = require('../config/logger');
 const { logErrorWithSource } = logger;
 
@@ -108,7 +110,22 @@ const manualPaymentController = async (req, res)=>{
     }
 }
 
+// Admin edit of a payment's expiry date and/or status.
+const updatePaymentController = async (req, res) => {
+  try {
+    const payment = await updatePaymentService(req.params.id, req.body);
+    responseHandler(res, 'OK', { payment }, { message: messages.success.UPDATED_SUCCESSFULLY });
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return responseHandler(res, error.status, null, { message: error.message });
+    }
+    logErrorWithSource(error, {meta: {params: req.params, body: req.body}})
+    responseHandler(res, 'INTERNAL_SERVER_ERROR');
+  }
+}
+
 module.exports = {
+  updatePaymentController,
   generatePaymentTokenController,
   verifyPaymentTokenController,
   getPaymentsController,
