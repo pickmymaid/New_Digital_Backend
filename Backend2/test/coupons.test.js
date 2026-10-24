@@ -79,7 +79,7 @@ before(() => {
 after(async () => {
   await ready?.catch(() => {});
   if (couponModel) await couponModel.deleteMany({ code: { $in: [CODE, `${CODE}X`] } });
-  if (paymentModel) await paymentModel.deleteMany({ user_id: USER_ID });
+  if (paymentModel) await paymentModel.deleteMany({ user_id: { $regex: `^${USER_ID}` } });
   if (server) await new Promise((resolve) => server.close(resolve));
   // app.js kicks off a DB connection on require() that keeps the event
   // loop alive, so disconnect it or `node --test` never exits.
@@ -112,6 +112,7 @@ test('POST /api/v1/payment/coupons creates an upper-cased coupon', async () => {
   assert.equal(body.data.coupon.discount_percent, 15);
   assert.equal(body.data.coupon.is_active, true);
   assert.equal(body.data.coupon.once_per_customer, true);
+  assert.equal(body.data.coupon.new_customers_only, true);
   couponId = body.data.coupon._id;
 });
 
@@ -161,8 +162,41 @@ test('PATCH changes the percentage; inactive and expired coupons stop validating
   assert.equal((await request('GET', `/api/v1/payment/coupons/validate?code=${CODE}`)).status, 200);
 });
 
+test('a new-customers-only coupon is refused for a customer who has paid before', async () => {
+  await ready;
+  // USER_ID's setup payment is a paid package bought without any coupon.
+  await assert.rejects(
+    couponService.findUsableCouponService(CODE, USER_ID),
+    (error) => error.status === 'BAD_REQUEST' && /only for new customers/.test(error.message)
+  );
+
+  // A customer whose only record is an abandoned checkout (never paid, then
+  // flagged 2 by the expiry job) still counts as new.
+  const abandonedUser = `${USER_ID}-abandoned`;
+  await paymentModel.create({
+    user_id: abandonedUser,
+    transactionToken: 'test-token',
+    transRef: `test-ref-abandoned-${suffix}`,
+    type: 1,
+    status: 2,
+    expiryDate: new Date(Date.now() - DAY),
+  });
+  assert.equal((await couponService.findUsableCouponService(CODE, abandonedUser)).code, CODE);
+  // So does a customer with no payments at all.
+  assert.equal((await couponService.findUsableCouponService(CODE, `${USER_ID}-brand-new`)).code, CODE);
+
+  // Turning the rule off lets returning customers use the code.
+  const res = await request('PATCH', `/api/v1/payment/coupons/${couponId}`, {
+    token: saToken,
+    body: { new_customers_only: false },
+  });
+  assert.equal((await res.json()).data.coupon.new_customers_only, false);
+  assert.equal((await couponService.findUsableCouponService(CODE, USER_ID)).code, CODE);
+});
+
 test('a once-per-customer coupon is refused after the customer paid with it', async () => {
   await ready;
+  // new_customers_only was switched off above, so only this rule applies.
   const coupon = await couponService.findUsableCouponService(CODE, USER_ID);
   assert.equal(coupon.code, CODE);
 

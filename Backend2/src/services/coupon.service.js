@@ -8,6 +8,7 @@ const {
   updateCoupon,
   deleteCouponById,
   countPaidPaymentsWithCoupon,
+  countPaidPaymentsForCustomer,
   countPaymentsWithCoupon,
 } = require('../queries/coupon.queries');
 const { HttpError } = require('../utils/httpError');
@@ -83,7 +84,8 @@ const seedDefaultCouponService = async () => {
 
 // Resolves a code the customer typed into a coupon they can use right now.
 // user_id is optional so the public preview works before login; the
-// once-per-customer rule is always enforced again at create-payment.
+// per-customer rules are always enforced again at create-payment, where
+// the customer is always known.
 const findUsableCouponService = async (rawCode, user_id) => {
   const code = normalizeCode(rawCode);
   const coupon = await getCouponByCode(code);
@@ -92,6 +94,9 @@ const findUsableCouponService = async (rawCode, user_id) => {
   }
   if (coupon.expires_at && coupon.expires_at < new Date()) {
     throw new HttpError('BAD_REQUEST', 'This coupon code has expired.');
+  }
+  if (coupon.new_customers_only && user_id && await countPaidPaymentsForCustomer(user_id) > 0) {
+    throw new HttpError('BAD_REQUEST', 'This coupon is only for new customers. Your account has already purchased a package.');
   }
   if (coupon.once_per_customer && user_id && await countPaidPaymentsWithCoupon(user_id, code) > 0) {
     throw new HttpError('BAD_REQUEST', 'You have already used this coupon code.');
@@ -120,6 +125,9 @@ const createCouponService = async (body) => {
   if (body?.once_per_customer !== undefined) {
     coupon.once_per_customer = normalizeBoolean(body.once_per_customer, 'once_per_customer');
   }
+  if (body?.new_customers_only !== undefined) {
+    coupon.new_customers_only = normalizeBoolean(body.new_customers_only, 'new_customers_only');
+  }
   if (body?.expires_at !== undefined) coupon.expires_at = normalizeExpiry(body.expires_at);
   return await saveCoupon(coupon);
 };
@@ -139,6 +147,9 @@ const updateCouponService = async (id, body) => {
   if (body?.is_active !== undefined) changes.is_active = normalizeBoolean(body.is_active, 'is_active');
   if (body?.once_per_customer !== undefined) {
     changes.once_per_customer = normalizeBoolean(body.once_per_customer, 'once_per_customer');
+  }
+  if (body?.new_customers_only !== undefined) {
+    changes.new_customers_only = normalizeBoolean(body.new_customers_only, 'new_customers_only');
   }
   if (body?.expires_at !== undefined) changes.expires_at = normalizeExpiry(body.expires_at);
 

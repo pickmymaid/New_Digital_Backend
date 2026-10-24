@@ -37,6 +37,14 @@ const countPaidPaymentsWithCoupon = async (user_id, code) => {
   return await paymentModel.countDocuments({ user_id, coupon_code: code, is_paid: true });
 };
 
+// Any earlier package purchase, with or without a coupon. status 1 also
+// covers legacy (v1 gateway) and admin-activated payments that never got
+// is_paid. status 2 alone isn't counted: the expiry job also sets it on
+// abandoned checkouts that were never paid.
+const countPaidPaymentsForCustomer = async (user_id) => {
+  return await paymentModel.countDocuments({ user_id, $or: [{ is_paid: true }, { status: 1 }] });
+};
+
 const countPaymentsWithCoupon = async (code) => {
   return await paymentModel.countDocuments({ coupon_code: code, is_paid: true });
 };
@@ -50,5 +58,6 @@ module.exports = {
   updateCoupon,
   deleteCouponById,
   countPaidPaymentsWithCoupon,
+  countPaidPaymentsForCustomer,
   countPaymentsWithCoupon,
 };

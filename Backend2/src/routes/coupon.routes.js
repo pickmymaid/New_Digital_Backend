@@ -24,6 +24,7 @@ const router = express.Router();
  *         is_active: { type: boolean, example: true }
  *         expires_at: { type: string, format: date-time, nullable: true }
  *         once_per_customer: { type: boolean, example: true }
+ *         new_customers_only: { type: boolean, example: true, description: Only customers with no earlier package purchase can use it }
  *         times_used: { type: integer, description: Paid orders that used this code (list only), example: 4 }
  *         createdAt: { type: string, format: date-time }
  *         updatedAt: { type: string, format: date-time }
@@ -35,6 +36,7 @@ const router = express.Router();
  *         is_active: { type: boolean, example: true }
  *         expires_at: { type: string, format: date-time, nullable: true, description: 'null clears the expiry' }
  *         once_per_customer: { type: boolean, example: true }
+ *         new_customers_only: { type: boolean, example: true }
  *
  * /api/v1/payment/coupons/validate:
  *   get:
@@ -42,8 +44,10 @@ const router = express.Router();
  *     summary: Check a coupon code
  *     description: >
  *       Public. Returns the discount for an active, unexpired code. When the
- *       request carries a customer session, a once-per-customer code the
- *       customer has already used is rejected.
+ *       request carries a customer session, a new-customers-only code is
+ *       rejected if the customer has bought a package before, and a
+ *       once-per-customer code they already used is rejected. Both rules are
+ *       enforced again at create-payment.
  *     parameters:
  *       - in: query
  *         name: code
@@ -64,7 +68,7 @@ const router = express.Router();
  *                     code: { type: string, example: WELCOME10 }
  *                     discount_percent: { type: integer, example: 10 }
  *       400:
- *         description: Missing/invalid code, expired, or already used by this customer
+ *         description: Missing/invalid code, expired, already used by this customer, or new-customers-only and the customer has paid before
  *       404:
  *         description: Unknown or inactive code
  *

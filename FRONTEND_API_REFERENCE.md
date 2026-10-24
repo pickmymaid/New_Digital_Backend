@@ -59,9 +59,9 @@ path prefix, so the frontend only ever talks to one origin.
 | POST | `/api/v1/payment/manual-verify` | none | admin tool, no auth gate — use with care |
 | GET | `/api/v1/payment/payment-details` | Session | current customer's own payment status |
 | PATCH | `/api/v1/payment/:id` | JWT | SA only — edit a payment's `expiryDate` / `status` |
-| GET | `/api/v1/payment/coupons/validate?code=` | none | preview a coupon: `{ code, discount_percent }`; 404 unknown/inactive, 400 expired/already used |
+| GET | `/api/v1/payment/coupons/validate?code=` | none | preview a coupon: `{ code, discount_percent }`; 404 unknown/inactive, 400 expired/already used/not a new customer (needs the session to check the last two) |
 | GET | `/api/v1/payment/coupons/` | JWT | SA only — list coupons with `times_used` |
-| POST | `/api/v1/payment/coupons/` | JWT | SA only — `{ code, discount_percent, is_active?, expires_at?, once_per_customer? }` |
+| POST | `/api/v1/payment/coupons/` | JWT | SA only — `{ code, discount_percent, is_active?, expires_at?, once_per_customer?, new_customers_only? }` |
 | PATCH | `/api/v1/payment/coupons/:id` | JWT | SA only — any subset of the create fields |
 | DELETE | `/api/v1/payment/coupons/:id` | JWT | SA only |
 | POST | `/api/v2/payment/create-payment` | Session | `{ type, coupon_code? }` — the gateway is charged the discounted amount |

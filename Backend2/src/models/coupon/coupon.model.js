@@ -35,6 +35,12 @@ const couponSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // Only customers who have never paid for a package can use it. Coupons
+    // saved before this field existed read it as true via the default.
+    new_customers_only: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );
