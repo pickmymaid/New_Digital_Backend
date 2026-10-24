@@ -72,7 +72,7 @@ const verifyPaymentService = (ref, user_id) => {
                     accessToken= await generateAccessToken();
                 }
             }else{
-                reject('Your account and payment are missmatching!')
+                return reject('Your account and payment are missmatching!')
             }
 
             const state = await verifyPaymentWithCred(accessToken, ref);
@@ -101,8 +101,11 @@ const verifyPaymentService = (ref, user_id) => {
                             contentType: 'application/pdf'
                         }
                     ],
-                    ["pickmymaid@gmail.com"]
-                )
+                    "pickmymaid@gmail.com"
+                ).catch((mailError) => {
+                    // The payment is already confirmed; a failed receipt mail must not fail the request or crash the process.
+                    logger.error(`Failed to send receipt email: ${mailError?.message || mailError}`, {meta: {ref, user_id}})
+                })
                 resolve(response)
             }else{
                 reject(`Oops! It seems there was an issue with your payment. Please double-check your payment details and try again. If the problem persists, don't hesitate to reach out to our support team for assistance. We're here to help!`)

@@ -13,6 +13,7 @@ const cors = require('cors');
 const cookieSession = require('cookie-session');
 const cookieParser = require('cookie-parser');
 const passport = require('passport');
+const mongoose = require('mongoose');
 
 const { connectDatabase } = require('./config/databaseConnection');
 const { fixCustomerAccountIdIndex } = require('./migrations/customerAccountIdIndex');
@@ -66,13 +67,20 @@ app.use(cors({
   credentials: true,
 }));
 
-connectDatabase().then(() => {
+// server.js exits the process if this rejects (initial connect isn't retried).
+const dbReady = connectDatabase().then(() => {
   fixCustomerAccountIdIndex().catch((error) => console.error('customers.account_id index fix failed:', error.message));
   seedDefaultCouponService().catch((error) => console.error('Coupon seeding failed:', error.message));
 });
 
 app.get('/', (req, res) => res.send('Pickmymaid Backend2 (auth + payment)'));
 app.get('/health', (req, res) => res.status(200).send({ status: 'ok', service: 'backend2-auth-payment' }));
+// Readiness: only take traffic while MongoDB is connected. Kept separate from
+// /health (liveness) so a DB outage pulls pods from rotation instead of restarting them.
+app.get('/ready', (req, res) => {
+  const ready = mongoose.connection.readyState === 1;
+  res.status(ready ? 200 : 503).send({ status: ready ? 'ready' : 'db-unavailable', service: 'backend2-auth-payment' });
+});
 
 // Images referenced by outgoing emails (e.g. the logo in the OTP mail). Mounted
 // under /api/v1/auth so the existing Ingress prefix already routes it here.
@@ -88,4 +96,4 @@ app.use('/api/v2/payment', paymentV2Routes);
 // (currently just Backend1's admin "verify payment" action).
 app.use('/internal', internalRoutes);
 
-module.exports = { app };
+module.exports = { app, dbReady };

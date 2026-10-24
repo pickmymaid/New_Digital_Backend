@@ -1,5 +1,6 @@
 const { getAllContacts, saveContact } = require("../queries/contact.queries");
 const messages = require("../utils/constants/messages");
+const { HttpError } = require("../utils/httpError");
 const { responseHandler } = require("../utils/responseHandler/responseHandler");
 
 const createContactService = (body) => {
@@ -8,6 +9,10 @@ const createContactService = (body) => {
       await saveContact(body);
       return resolve(messages.success.SUBMIT)
     } catch (error) {
+      // Missing/invalid form fields are the caller's fault, not a server error.
+      if (error.name === 'ValidationError' || error.name === 'CastError') {
+        return reject(new HttpError('BAD_REQUEST', error.message))
+      }
       return reject(error.message)
     }
   })

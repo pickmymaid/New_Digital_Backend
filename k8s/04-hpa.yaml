@@ -1,7 +1,7 @@
-# Only Backend1 autoscales. Backend2 stays fixed at 1 replica (see
-# backend2.yaml note about the in-process subscription cron) until that
-# cron is moved to a K8s CronJob. Requires the metrics-server addon,
-# which DOKS enables by default.
+# Only Backend1 autoscales. Backend2 runs a fixed 2 replicas (backend2.yaml);
+# its subscription-expiry job runs once cluster-wide via the K8s CronJob in
+# 05-backend2-cronjob.yaml, so extra replicas don't double-process it.
+# Requires the metrics-server addon, which DOKS enables by default.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

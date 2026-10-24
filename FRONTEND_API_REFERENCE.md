@@ -56,7 +56,7 @@ path prefix, so the frontend only ever talks to one origin.
 | POST | `/api/v1/payment/subscribe` | none | generates a payment gateway token/URL |
 | POST | `/api/v1/payment/verify` | none | verifies a payment gateway callback token |
 | GET | `/api/v1/payment/` | JWT | SA only — list all payment records |
-| POST | `/api/v1/payment/manual-verify` | none | admin tool, no auth gate — use with care |
+| POST | `/api/v1/payment/manual-verify` | JWT | SA only — `{ ref }`; re-checks the payment with the gateway |
 | GET | `/api/v1/payment/payment-details` | Session | current customer's own payment status |
 | PATCH | `/api/v1/payment/:id` | JWT | SA only — edit a payment's `expiryDate` / `status` |
 | GET | `/api/v1/payment/coupons/validate?code=` | none | preview a coupon: `{ code, discount_percent }`; 404 unknown/inactive, 400 expired/already used/not a new customer (needs the session to check the last two) |
@@ -66,8 +66,7 @@ path prefix, so the frontend only ever talks to one origin.
 | DELETE | `/api/v1/payment/coupons/:id` | JWT | SA only |
 | POST | `/api/v2/payment/create-payment` | Session | `{ type, coupon_code? }` — the gateway is charged the discounted amount |
 | POST | `/api/v2/payment/acknowledge/:ref` | Session | |
-| GET | `/api/v2/payment/generate-reciept` | none | `user_id` passed as query param |
-| POST | `/api/v2/payment/download-invoice` | none | |
+| POST | `/api/v2/payment/download-invoice` | Session | `{ ref }` — only the logged-in customer's own invoice; 404 if not theirs |
 
 `/internal/verify-payment` also exists on Backend2 but is **not** reachable
 from the frontend — it's called only by Backend1's admin controller over
@@ -107,8 +106,8 @@ the private service network. See `ARCHITECTURE.md`.
 | POST | `/api/v1/job/assured` | JWT | SA/A |
 | GET | `/api/v1/job/all-maids-seo` | none | |
 | GET | `/api/v1/job/counts` | none | |
-| POST | `/api/v1/job/toggle-wishlist` | none | `user_id` passed in body |
-| GET | `/api/v1/job/wishlist` | none | `user_id` passed as query param |
+| POST | `/api/v1/job/toggle-wishlist` | Session | `{ maidId }` — 401 when not logged in |
+| GET | `/api/v1/job/wishlist` | Session (optional) | current customer's wishlist; empty list for guests |
 | POST | `/api/v1/job/findjob` | JWT | SA/A — job listing create |
 | GET | `/api/v1/job/findjob` | JWT | SA/A — job listing admin view |
 | DELETE | `/api/v1/job/findjob` | JWT | SA only |
@@ -162,7 +161,7 @@ Admin-managed catalog of maid skills. Maid profiles store skills by **name** (`s
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| POST | `/api/v1/test/send-test-email` | none | gated by a hardcoded key in the body, not real auth — debug tool only |
+| POST | `/api/v1/test/send-test-email` | JWT | SA only — `{ to, subject, message, cc? }`; debug tool |
 
 ---
 

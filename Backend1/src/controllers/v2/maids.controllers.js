@@ -6,10 +6,14 @@ const logger = require("../../config/logger");
 const { logErrorWithSource } = logger;
 
 const getPaginatedMaidsController = (req, res) => {
-    const {page} = req.params;
+    const page = Number(req.params.page);
     const {query} = req;
     const token = req.headers.authorization?.split(' ')[1];
     let user_id = null
+
+    if (!Number.isInteger(page) || page < 1) {
+        return responseHandler(res,'BAD_REQUEST',null,{message: 'Page must be a positive integer.'})
+    }
 
     if(token){
         const decoded = decodeJWT(token)
@@ -40,7 +44,7 @@ const getPaginatedMaidsController = (req, res) => {
         })
         .catch((error) => {
             logErrorWithSource(error, {meta: req.query})
-            responseHandler(res,'INTERNAL_SERVER_ERROR',error)
+            responseHandler(res,'INTERNAL_SERVER_ERROR')
         })
 }
 

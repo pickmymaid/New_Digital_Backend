@@ -17,8 +17,13 @@ router.post('/verify-payment', internalAuth, async (req, res) => {
     const data = await verifyPaymentService(ref, user_id);
     responseHandler(res, 'OK', data);
   } catch (error) {
+    // verifyPaymentService rejects with a string for expected outcomes
+    // (ref/user mismatch, payment not completed) — those are a bad request.
+    if (typeof error === 'string') {
+      return responseHandler(res, 'BAD_REQUEST', null, { message: error });
+    }
     logErrorWithSource(error, { meta: { body: req.body } });
-    responseHandler(res, 'INTERNAL_SERVER_ERROR', null, { message: error });
+    responseHandler(res, 'INTERNAL_SERVER_ERROR', null, { message: 'Could not verify the payment.' });
   }
 });
 
@@ -31,7 +36,7 @@ router.post('/expire-subscriptions', internalAuth, async (req, res) => {
     responseHandler(res, 'OK', data);
   } catch (error) {
     logErrorWithSource(error, {});
-    responseHandler(res, 'INTERNAL_SERVER_ERROR', null, { message: error });
+    responseHandler(res, 'INTERNAL_SERVER_ERROR', null, { message: error?.message || 'Could not expire subscriptions.' });
   }
 });
 

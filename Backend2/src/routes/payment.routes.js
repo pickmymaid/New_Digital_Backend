@@ -130,16 +130,18 @@ router.get('/', validateJwtToken, roleValidator(['SA']), getPaymentsController);
  *   post:
  *     tags: [Payment V1]
  *     summary: Manually verify a payment
- *     description: Internal tool for admins to manually mark a payment as verified. No JWT required — use with care.
+ *     description: Admin tool to re-check a payment with the gateway by its transaction reference and mark it verified if paid. SA only.
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [user_id]
+ *             required: [ref]
  *             properties:
- *               user_id: { type: string, example: USR-001 }
+ *               ref: { type: string, description: Payment transaction reference }
  *     responses:
  *       200:
  *         description: Payment manually verified
@@ -147,8 +149,12 @@ router.get('/', validateJwtToken, roleValidator(['SA']), getPaymentsController);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *       400:
+ *         description: Missing reference
+ *       401:
+ *         description: Not a super admin
  */
-router.post('/manual-verify', manualPaymentController);
+router.post('/manual-verify', validateJwtToken, roleValidator(['SA']), manualPaymentController);
 
 /**
  * @openapi

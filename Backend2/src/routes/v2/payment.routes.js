@@ -1,5 +1,5 @@
 const express = require("express");
-const { acknowledgePaymentController, createPaymentController, downloadInvoice, generateReciept } = require("../../controllers/v2/payment.controllers");
+const { acknowledgePaymentController, createPaymentController, downloadInvoice } = require("../../controllers/v2/payment.controllers");
 const { validateJwtToken } = require("../../middleware/jwtValidator");
 const { validateUser } = require("../../middleware/validateUser");
 
@@ -87,52 +87,19 @@ router.post('/acknowledge/:ref',validateUser, acknowledgePaymentController)
 
 /**
  * @openapi
- * /api/v2/payment/generate-reciept:
- *   get:
- *     tags: [Payment V2]
- *     summary: Generate a payment receipt PDF
- *     description: >
- *       Generates a PDF receipt for a customer's payment. Returns the PDF as a base64-encoded string or binary.
- *       Note: endpoint name intentionally uses legacy spelling "reciept".
- *     parameters:
- *       - in: query
- *         name: user_id
- *         required: true
- *         schema:
- *           type: string
- *         description: The customer's user_id
- *     responses:
- *       200:
- *         description: Receipt PDF generated
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/SuccessResponse'
- *               properties:
- *                 data:
- *                   type: object
- *                   properties:
- *                     pdf: { type: string, description: Base64-encoded PDF content }
- */
-router.get('/generate-reciept',  generateReciept)
-
-/**
- * @openapi
  * /api/v2/payment/download-invoice:
  *   post:
  *     tags: [Payment V2]
  *     summary: Download payment invoice
- *     description: Returns invoice data for the given payment, optionally sending it via email.
+ *     description: Returns the logged-in customer's invoice for the given payment reference. Requires the customer session cookie; the invoice owner is taken from the session, not the body.
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [user_id]
+ *             required: [ref]
  *             properties:
- *               user_id: { type: string, example: USR-001 }
  *               ref: { type: string, description: Payment reference number }
  *     responses:
  *       200:
@@ -141,7 +108,13 @@ router.get('/generate-reciept',  generateReciept)
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *       400:
+ *         description: Missing payment reference
+ *       401:
+ *         description: Not logged in
+ *       404:
+ *         description: No invoice for this reference and customer
  */
-router.post('/download-invoice', downloadInvoice)
+router.post('/download-invoice', validateUser, downloadInvoice)
 
 module.exports = router;

@@ -1,5 +1,7 @@
 const { Router } = require('express');
 const { sendSesEmailWithAttachment } = require('../utils/sendMail/sendSESMail');
+const { validateJwtToken } = require('../middleware/jwtValidator');
+const { roleValidator } = require('../middleware/roleValidator');
 
 const router = Router();
 
@@ -8,19 +10,20 @@ const router = Router();
  * /api/v1/test/send-test-email:
  *   post:
  *     tags: [Internal]
- *     summary: Send a test email via AWS SES
+ *     summary: Send a test email
  *     description: >
- *       **Internal/debug endpoint.** Sends an email using the configured AWS SES client.
- *       Requires a secret key in the request body. Not for public use.
+ *       **Internal/debug endpoint.** Sends an email through the configured mail provider.
+ *       Super admins only.
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [to, subject, message, key]
+ *             required: [to, subject, message]
  *             properties:
- *               key: { type: string, description: Secret key required to use this endpoint }
  *               to: { type: string, format: email, example: test@example.com }
  *               cc: { type: string, format: email, description: Optional CC address }
  *               subject: { type: string, example: Test email }
@@ -35,18 +38,16 @@ const router = Router();
  *               properties:
  *                 message: { type: string }
  *       400:
- *         description: Invalid key or missing required fields
+ *         description: Missing required fields
+ *       401:
+ *         description: Not a super admin
  *       500:
  *         description: Failed to send email
  */
-router.post('/send-test-email', async (req, res) => {
-  const { to, cc, key, subject, message } = req.body;
+router.post('/send-test-email', validateJwtToken, roleValidator(['SA']), async (req, res) => {
+  const { to, cc, subject, message } = req.body;
 
-  if(key !== "test-email-1122334455"){
-    return res.status(400).json({ error: 'Invalid key' });
-  }
-
-  if (!to || !subject || !message) {
+  if (typeof to !== 'string' || typeof subject !== 'string' || typeof message !== 'string' || !to || !subject || !message) {
     return res.status(400).json({ error: 'Missing required fields: to, subject, message' });
   }
 
@@ -61,7 +62,7 @@ router.post('/send-test-email', async (req, res) => {
     );
     res.status(200).json({ message: 'Email sent successfully', info });
   } catch (error) {
-    console.error('Error sending test email:', error);
+    console.error('Error sending test email:', error.message);
     res.status(500).json({ error: 'Failed to send email', details: error.message });
   }
 });

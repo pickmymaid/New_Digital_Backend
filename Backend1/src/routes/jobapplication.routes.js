@@ -12,6 +12,7 @@ const { validateJwtToken } = require('../middleware/jwtValidator');
 const { jobApplicationClientFormSchema } = require('../middleware/requestValidators/jobApplication.validator');
 const { roleValidator } = require('../middleware/roleValidator');
 const { validator } = require('../middleware/validator');
+const { validateUser } = require('../middleware/validateUser');
 
 
 const router = express.Router();
@@ -611,17 +612,16 @@ router.get('/counts',getThecountsJobApplicationController)
  *   post:
  *     tags: [Maids V1]
  *     summary: Add or remove a maid from a user's wishlist
- *     description: Toggles wishlist membership. No auth middleware — user_id is passed in the request body.
+ *     description: Toggles wishlist membership for the logged-in customer (session cookie).
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [maid_id, user_id]
+ *             required: [maidId]
  *             properties:
- *               maid_id: { type: string, example: 64a1b2c3d4e5f6a7b8c9d0e1 }
- *               user_id: { type: string, example: USR-001 }
+ *               maidId: { type: string, example: 64a1b2c3d4e5f6a7b8c9d0e1 }
  *     responses:
  *       200:
  *         description: Wishlist updated
@@ -629,8 +629,10 @@ router.get('/counts',getThecountsJobApplicationController)
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *       401:
+ *         description: Not logged in
  */
-router.post('/toggle-wishlist',toggleWishlistItemController)
+router.post('/toggle-wishlist', validateUser, toggleWishlistItemController)
 
 /**
  * @openapi

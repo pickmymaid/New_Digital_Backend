@@ -5,6 +5,7 @@ const { sendMail } = require("../utils/sendMail/sendMail");
 const paymentServiceClient = require("../integrations/paymentServiceClient");
 const logger = require("../config/logger");
 const { logErrorWithSource } = logger;
+const messages = require("../utils/constants/messages");
 
 /**
  * This function retrieves team members and sends a response with the retrieved data or an error
@@ -48,6 +49,9 @@ const teamMemberRoleChangeController = async (req, res) => {
   teamMemberRoleChangeService(id).then((data) => {
     responseHandler(res, 'OK', null, data)
   }).catch((error) => {
+    if (error?.message === messages.error.USER_NOT_FOUND) {
+      return responseHandler(res, 'NOT_FOUND', null, error)
+    }
     logErrorWithSource(error , {meta: {body: req.body}})
     responseHandler(res, 'INTERNAL_SERVER_ERROR', null, error)
   })
@@ -78,10 +82,16 @@ const getCustomersController = async (req, res) => {
 
 const updateCustomerPasswordController = async (req, res) => {
   const { user_id } = req.body;
+  if (typeof user_id !== 'string' || !user_id) {
+    return responseHandler(res, 'BAD_REQUEST', null, { message: 'user_id is required.' })
+  }
   updateCustomerPasswordService(user_id)
     .then((data) => {
       responseHandler(res, 'OK', { password: data.password }, { message: data.message })
     }).catch(errorMessage => {
+      if (errorMessage === messages.error.USER_NOT_FOUND) {
+        return responseHandler(res, 'NOT_FOUND', null, { message: errorMessage })
+      }
       logger.error(errorMessage , {meta: {body: req.body}})
       responseHandler(res, 'INTERNAL_SERVER_ERROR', null, { message: errorMessage })
     })
@@ -95,8 +105,12 @@ const verifyCustomerPaymentController = async (req, res) => {
     .then((data) => {
         responseHandler(res,'OK',data)
     }).catch((error) => {
+      // Backend2 answers 400 for expected outcomes (ref/user mismatch, unpaid).
+      if (error?.response?.status === 400) {
+        return responseHandler(res,'BAD_REQUEST',null,{message: error.response.data?.message})
+      }
       logErrorWithSource(error , {meta: {body: req.body}})
-        responseHandler(res,'INTERNAL_SERVER_ERROR',null,{message: error?.response?.data || error?.message || error})
+      responseHandler(res,'INTERNAL_SERVER_ERROR',null,{message: error?.response?.data?.message || error?.message || 'Could not verify the payment.'})
     })
 }
 

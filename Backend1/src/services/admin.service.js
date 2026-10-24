@@ -95,6 +95,7 @@ const updateCustomerPasswordService = (user_id) => {
       const password = generatePassword()
       const cryptedPassword = await passwordToHash(password);
       const user = await getCustomerWithID(user_id);
+      if (!user) return reject(messages.error.USER_NOT_FOUND);
       await dangerouslyUpdateCustomerPassword(user_id, cryptedPassword);
 
       // ! Send mail to Customer

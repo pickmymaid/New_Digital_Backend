@@ -100,7 +100,7 @@ const createJobApplicationClientController = (req, res) => {
         responseHandler(res, 'CREATED', null, { message });
       })
       .catch((message) => {
-        logger.error(message, {meta: {body: req}})
+        logger.error(message, {meta: {query: req.query, body: req.body}})
         responseHandler(res, 'BAD_REQUEST', null, { message });
       });
   } catch (error) {
@@ -117,30 +117,31 @@ const getJobApplicationFormController = (req, res) => {
         responseHandler(res, 'OK', { jobApplication: data });
       })
       .catch((error) => {
-        responseHandler(res, 'INTERNAL_SERVER_ERROR', null, error);
+        responseHandler(res, 'INTERNAL_SERVER_ERROR');
       });
   } catch (error) {
-    logErrorWithSource(error, {meta: {body: req}})
+    logErrorWithSource(error, {meta: {query: req.query, body: req.body}})
     responseHandler(res, 'INTERNAL_SERVER_ERROR');
   }
 };
 
 const getAllJobApplicationFormController = (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 0;
-    const limit = parseInt(req.query.limit) || 30;
-    const search = req.query.search;
-    const filter = req.query.filter;
+    // Pages are 1-based; anything missing or invalid falls back to page 1.
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 30, 1), 100);
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const filter = typeof req.query.filter === 'string' ? req.query.filter : undefined;
     getAllJobApplicationFormService(page, limit, search, filter)
       .then((data) => {
         responseHandler(res, 'OK', { jobApplication: data.data, count: data.count });
       })
       .catch((error) => {
-        logErrorWithSource(error, {meta: {body: req}})
-        responseHandler(res, 'INTERNAL_SERVER_ERROR', null, error);
+        logErrorWithSource(error, {meta: {query: req.query, body: req.body}})
+        responseHandler(res, 'INTERNAL_SERVER_ERROR');
       });
   } catch (error) {
-    logErrorWithSource(error, {meta: {body: req}})
+    logErrorWithSource(error, {meta: {query: req.query, body: req.body}})
     responseHandler(res, 'INTERNAL_SERVER_ERROR');
   }
 };
@@ -153,11 +154,11 @@ const getVerifiedAndReferenceJobApplicationFormController = (req, res) => {
         responseHandler(res, 'OK', { jobApplication: data });
       })
       .catch((error) => {
-        logErrorWithSource(error, {meta: {body: req}})
-        responseHandler(res, 'INTERNAL_SERVER_ERROR', null, error);
+        logErrorWithSource(error, {meta: {query: req.query, body: req.body}})
+        responseHandler(res, 'INTERNAL_SERVER_ERROR');
       });
   } catch (error) {
-    logErrorWithSource(error, {meta: {body: req}})
+    logErrorWithSource(error, {meta: {query: req.query, body: req.body}})
     responseHandler(res, 'INTERNAL_SERVER_ERROR');
   }
 };
@@ -170,11 +171,11 @@ const getApprovedJobApplicationFormController = (req, res) => {
         responseHandler(res, 'OK', { jobApplication: data });
       })
       .catch((error) => {
-        logErrorWithSource(error, {meta: {body: req}})
-        responseHandler(res, 'INTERNAL_SERVER_ERROR', null, error);
+        logErrorWithSource(error, {meta: {query: req.query, body: req.body}})
+        responseHandler(res, 'INTERNAL_SERVER_ERROR');
       });
   } catch (error) {
-    logErrorWithSource(error, {meta: {body: req}})
+    logErrorWithSource(error, {meta: {query: req.query, body: req.body}})
     responseHandler(res, 'INTERNAL_SERVER_ERROR');
   }
 };
@@ -191,7 +192,7 @@ const getJobApplicationbyidFormController = async (req, res) => {
       })
       .catch((error) => {
         logErrorWithSource(error, {meta: {body: req.body, user: req.user}})
-        responseHandler(res, 'INTERNAL_SERVER_ERROR', null, error);
+        responseHandler(res, 'INTERNAL_SERVER_ERROR');
       });
   } catch (error) {
     logErrorWithSource(error, {meta: {id: req.body.id, user: req.user}})
@@ -212,7 +213,7 @@ const getJobApplicationbyidDashboardFormController = async (req, res) => {
       })
       .catch((error) => {
         logErrorWithSource(error, {meta: {body: req.body}})
-        responseHandler(res, 'INTERNAL_SERVER_ERROR', null, error);
+        responseHandler(res, 'INTERNAL_SERVER_ERROR');
       });
   } catch (error) {
     logErrorWithSource(error, {meta: {body: req.body}})

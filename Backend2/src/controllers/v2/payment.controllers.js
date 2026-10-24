@@ -1,12 +1,8 @@
 const { createPaymentService, getInvoice, verifyPaymentService } = require("../../services/v2/payment.service");
 const { validateJwtToken } = require("../../utils/validateJWT/validateJWT");
 const { responseHandler } = require("../../utils/responseHandler/responseHandler");
-const { recieptTemplate } = require("../../templates/recieptTemplate");
-const { sendMail } = require("../../utils/sendMail/sendMail");
-const { recieptBody } = require("../../utils/mailBody/reciept");
 const logger = require("../../config/logger");
 const { logErrorWithSource } = logger;
-const { sendSesEmailWithAttachment } = require("../../utils/sendMail/sendSESMail");
 const { HttpError } = require("../../utils/httpError");
 
 const createPaymentController = async (req, res) => {
@@ -22,7 +18,8 @@ const createPaymentController = async (req, res) => {
                 return responseHandler(res, error.status, null, {message: error.message})
             }
             logErrorWithSource(error , {meta: {body: req.body}})
-            responseHandler(res,'INTERNAL_SERVER_ERROR',error)
+            // Don't echo the raw error: gateway (axios) errors are circular and would make res.send throw.
+            responseHandler(res,'INTERNAL_SERVER_ERROR')
         })
 }
 
@@ -34,48 +31,36 @@ const acknowledgePaymentController = async (req, res) => {
             responseHandler(res,'OK',data)
         }).catch((error) => {
             logErrorWithSource(error , {meta: {body: req.body}})
-            responseHandler(res,'INTERNAL_SERVER_ERROR',null,{message: error})
+            // Customer-facing reasons are rejected as strings; anything else (e.g. a gateway error) stays in the logs.
+            const message = typeof error === 'string' ? error : 'Could not verify the payment. Please try again.'
+            responseHandler(res,'INTERNAL_SERVER_ERROR',null,{message})
         })
 
 }
 
-const generateReciept = async (req, res) => {
-    const template = await recieptTemplate('Muhsin\nmuhsinny333@gmail.com\n+918606113002', '633d3ede43ed3343244','Premium Plan', '01/02/2023-01/03/2024',699,599, '01/02/2023');
-    sendSesEmailWithAttachment(
-        "muhsinny333@gmail.com",
-        'Pickmymaid Subscription Confirmation and Receipt',
-        recieptBody('Muhsin','01/02/2023','01/03/2023','Premium Plan'),
-        '',
-        [
-            {
-              filename: `muhsin Invoice.pdf`,
-              content: template.buffer,
-              contentType: "application/pdf",
-            },
-        ]
-    )
-    if(template?.status){
-        res.send(template.buffer)
-    }else{
-        responseHandler(res,'INTERNAL_SERVER_ERROR',null, {message: 'Something went wrong on generating!'})
-    }
-}
-
+// Customers can only download their own invoices: the owner comes from the
+// session, never from the request body.
 const downloadInvoice = async (req, res) => {
-    try {
-      const user_id = req.body.user_id;
-      const ref = req.body.ref;
+    const user_id = req.user?.user_id;
+    const ref = req.body?.ref;
 
+    if (typeof ref !== 'string' || !ref) {
+      return responseHandler(res, 'BAD_REQUEST', null, { message: 'Payment reference is required.' });
+    }
+
+    try {
       const data = await getInvoice(ref, user_id);
 
       if (data) {
         responseHandler(res, 'OK', data)
       } else {
-        responseHandler(res, "INTERNAL_SERVER_ERROR", null, {
-          message: "Something went wrong on generating!",
-        });
+        responseHandler(res, 'NOT_FOUND', null, { message: 'Invoice not found.' });
       }
     } catch (error) {
+      // getInvoice rejects with `false` when no payment matches ref + user.
+      if (error === false) {
+        return responseHandler(res, 'NOT_FOUND', null, { message: 'Invoice not found.' });
+      }
       responseHandler(res, "INTERNAL_SERVER_ERROR", null, {
         message: "Something went wrong on generating!",
       });
@@ -102,7 +87,6 @@ const sendInvoiceToMail = async (req, res) => {
 module.exports = {
   createPaymentController,
   acknowledgePaymentController,
-  generateReciept,
   downloadInvoice,
   sendInvoiceToMail,
 };

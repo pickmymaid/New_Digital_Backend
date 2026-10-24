@@ -12,10 +12,16 @@ passport.serializeUser((user, done) => {
 });
 
 passport.deserializeUser(async (id, done) => {
-  let user = await getCustomerWithID(id);
-  user = { ...user };
-  user._id = user?.user_id;
-  done(null, user);
+  try {
+    let user = await getCustomerWithID(id);
+    // Customer no longer exists: treat the session as logged out.
+    if (!user) return done(null, false);
+    user = { ...user };
+    user._id = user?.user_id;
+    done(null, user);
+  } catch (error) {
+    done(error);
+  }
 });
 
 module.exports = passport;

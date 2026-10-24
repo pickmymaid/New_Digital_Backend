@@ -95,6 +95,10 @@ const getUserPaymentDetailsController = async (req, res) => {
 const manualPaymentController = async (req, res)=>{
   let body = req.body;
 
+    if (typeof body?.ref !== 'string' || !body.ref) {
+      return responseHandler(res, 'BAD_REQUEST', null, { message: 'Payment reference is required.' });
+    }
+
     try{
 
       manualVerifyPaymentService(body).then((data) => {

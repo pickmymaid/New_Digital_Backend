@@ -19,6 +19,10 @@ const createBlogController = (req, res) => {
     const {body} = req;
     const thumbnail = (req?.files)?.thumbnail
 
+    if (!body?.slug) {
+        return responseHandler(res,'BAD_REQUEST',null,{message: 'Slug is required'})
+    }
+
     createBlogService(body,thumbnail).then((data) => {
         responseHandler(res,'CREATED',{slug: data?.slug},{message: data.message})
     }).catch((error) => {
@@ -76,8 +80,13 @@ const addCommentController = async (req, res) => {
  */
 const getAllBlogsController= async (req, res) => {
     const {params} = req;
+    const page = Number(params?.page);
 
-    getAlBlogsService(parseInt(params?.page))
+    if (!Number.isInteger(page) || page < 1) {
+        return responseHandler(res,'BAD_REQUEST',null,{message: 'Page must be a positive integer.'})
+    }
+
+    getAlBlogsService(page)
         .then((data) => {
             responseHandler(res,'OK',{blogs: data.blogs, total_counts: data.count},{message: data.message})
         }).catch((error) => {
