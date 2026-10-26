@@ -74,8 +74,9 @@ const jobapplicationSchema = new mongoose.Schema(
     nationality: {
       type: String,
     },
+    // Preferred work locations (emirates); older profiles have a single string, read as a one-item list.
     location: {
-      type: String,
+      type: [String],
     },
     religion: {
       type: String,
@@ -119,8 +120,9 @@ const jobapplicationSchema = new mongoose.Schema(
       type: Array,
     },
     language: [languageSubSchema],
+    // Work arrangements, e.g. ["Live In", "Live Out"].
     option: {
-      type: String,
+      type: [String],
     },
     employmentHistory: [ExperianceSubSchema],
 

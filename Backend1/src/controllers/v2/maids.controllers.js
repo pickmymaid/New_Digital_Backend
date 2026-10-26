@@ -25,7 +25,7 @@ const getPaginatedMaidsController = (req, res) => {
 
     const filter = {
         option: queryParser(query?.option, true),
-        location: queryParser(location),
+        location: queryParser(location, true),
         availability: queryParser(query?.availability, true),
         skills: queryParser(query?.skills, true),
         ageFrom: query?.ageFrom,

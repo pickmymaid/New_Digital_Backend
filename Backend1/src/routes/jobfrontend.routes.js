@@ -37,7 +37,7 @@ const router = express.Router();
  *               whatsapp_no: { type: string }
  *               botim_number: { type: string }
  *               service: { type: string, example: Nanny }
- *               location: { type: string, example: Dubai, description: Preferred work location }
+ *               location: { type: string, example: Dubai, description: 'Preferred work location, or a JSON array string of several' }
  *               current_location: { type: string, example: Dubai }
  *               visa_status: { type: string, example: Visit Visa }
  *               visa_expire: { type: string, format: date }

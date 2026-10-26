@@ -30,6 +30,7 @@ const logger = require('../config/logger');
 const { logErrorWithSource } = logger;
 const { jobApplicationModel } = require('../models/jobApplication/jobApplication.model');
 const { HttpError } = require('../utils/httpError');
+const { toStringList, toOptionList } = require('../utils/maids/multiSelect');
 
 // Multipart forms send these fields as JSON strings. Parses them in place on `data`.
 // A missing field gets `defaults[field]` (pass none on update so existing values are kept).
@@ -49,6 +50,9 @@ const parseJsonFields = (data, defaults = {}) => {
       return `${field} must be valid JSON`;
     }
   }
+  // Multi-select fields: a list, a JSON list string or a single value from older clients.
+  if (data.location !== undefined) data.location = toStringList(data.location);
+  if (data.option !== undefined) data.option = toOptionList(data.option);
   return null;
 };
 

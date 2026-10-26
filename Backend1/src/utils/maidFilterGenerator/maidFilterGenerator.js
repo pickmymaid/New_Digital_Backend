@@ -1,4 +1,6 @@
 
+const { optionFilter } = require('../maids/multiSelect');
+
 const maidFilterGenerator = (filter) => {
     const option = filter?.option;
     const location = filter?.location;
@@ -26,10 +28,10 @@ const maidFilterGenerator = (filter) => {
     };
 
     if (option?.[0]) {
-        pipeline.option = opINReturn(option)
+        pipeline.$and = [...(pipeline.$and || []), optionFilter(option)]
     }
-    if (location) {
-        pipeline.location = location
+    if (location?.[0]) {
+        pipeline.location = opINReturn(location)
     }
     if (availability?.[0]) {
         availability = availability?.map((item) => item === "Hired" ? false : true)

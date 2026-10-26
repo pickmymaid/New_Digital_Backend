@@ -25,12 +25,12 @@ const router = express.Router();
  *         name: option
  *         schema:
  *           type: string
- *         description: Filter preset option identifier
+ *         description: Comma-separated work arrangements, e.g. `Live In,Live Out` (matches maids with any of them)
  *       - in: query
  *         name: location
  *         schema:
  *           type: string
- *         description: Filter by location (coalesced with `country` param)
+ *         description: Comma-separated locations, matches maids with any of them (coalesced with `country` param)
  *       - in: query
  *         name: country
  *         schema:
