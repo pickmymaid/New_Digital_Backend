@@ -60,7 +60,10 @@ const getPaginatedMaids = async (page, pipeline, sort, user_id, primaryService) 
                 youtube_link: 1
             }
         },
-        ...(primaryService ? [{ $addFields: { _servicePriority: { $cond: [{ $eq: ['$service', primaryService] }, 0, 1] } } }] : []),
+        // Maids offering the searched service first; `service` is a list (older profiles: one string).
+        ...(primaryService ? [{ $addFields: { _servicePriority: { $cond: [
+            { $in: [primaryService, { $cond: [{ $isArray: '$service' }, '$service', ['$service']] }] }, 0, 1
+        ] } } }] : []),
         {
             $sort: sortPipeline
         },

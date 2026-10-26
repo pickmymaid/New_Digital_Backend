@@ -106,6 +106,7 @@ router.post('/register', validator(jobApplicationClientFormSchema), createJobApp
  *               marital_status: { type: string, example: Single }
  *               location: { type: string, example: '["Dubai","Sharjah"]', description: 'JSON array string of preferred locations (a single value is also accepted)' }
  *               option: { type: string, example: '["Live In","Live Out"]', description: 'JSON array string of work arrangements (a single value is also accepted)' }
+ *               service: { type: string, example: '["Maid","Cook"]', description: 'JSON array string of services offered (a single value is also accepted)' }
  *               religion: { type: string, example: Christian }
  *               salary: { type: number, example: 1500 }
  *               availability: { type: string, example: Immediate }

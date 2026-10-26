@@ -146,6 +146,12 @@ const openApiComponents = {
           example: ['Live In', 'Live Out'],
           description: 'Work arrangements. Profiles saved before multi-select may still return a single string.',
         },
+        service: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['Maid', 'Cook'],
+          description: 'Services offered. Profiles saved before multi-select may still return a single string.',
+        },
         religion: { type: 'string', example: 'Christian' },
         salary: { type: 'number', example: 1500 },
         availability: { type: 'string', example: 'Immediate' },

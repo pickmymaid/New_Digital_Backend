@@ -1,5 +1,5 @@
 /**
- * One-off: maid profiles' `location` and `option` became lists (multi-select in
+ * One-off: maid profiles' `location`, `service` and `option` became lists (multi-select in
  * the admin panel). Rewrites profiles that still store a single string as a
  * list, and splits "Live In And Live Out" into ["Live In", "Live Out"].
  * The API accepts both shapes, so this can run any time after the deploy.
@@ -20,18 +20,28 @@ async function main() {
   const maids = mongoose.connection.collection("jobapplications");
 
   const cursor = maids.find(
-    { $or: [{ location: { $type: "string" } }, { option: { $type: "string" } }, { option: "Live In And Live Out" }] },
-    { projection: { ref_number: 1, location: 1, option: 1 } }
+    {
+      $or: [
+        { location: { $type: "string" } },
+        { service: { $type: "string" } },
+        { option: { $type: "string" } },
+        { option: "Live In And Live Out" },
+      ],
+    },
+    { projection: { ref_number: 1, location: 1, service: 1, option: 1 } }
   );
 
   let updated = 0;
   for await (const maid of cursor) {
     const set = {};
     if (typeof maid.location === "string") set.location = toStringList(maid.location);
+    if (typeof maid.service === "string") set.service = toStringList(maid.service);
     if (typeof maid.option === "string" || maid.option?.includes("Live In And Live Out")) {
       set.option = toOptionList(maid.option);
     }
-    console.log(`${maid.ref_number}: ${JSON.stringify({ location: maid.location, option: maid.option })} -> ${JSON.stringify(set)}`);
+    console.log(
+      `${maid.ref_number}: ${JSON.stringify({ location: maid.location, service: maid.service, option: maid.option })} -> ${JSON.stringify(set)}`
+    );
     if (!dryRun) await maids.updateOne({ _id: maid._id }, { $set: set });
     updated++;
   }

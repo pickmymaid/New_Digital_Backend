@@ -98,8 +98,9 @@ const jobapplicationSchema = new mongoose.Schema(
     botim_number: {
       type: String,
     },
+    // Services offered, e.g. ["Maid", "Cook"]; older profiles have a single string.
     service: {
-      type: String,
+      type: [String],
     },
     current_location: {
       type: String,

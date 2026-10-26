@@ -1,4 +1,4 @@
-// A maid's `location` and `option` are lists (the admin panel picks several).
+// A maid's `location`, `service` and `option` are lists (the admin panel picks several).
 // Older clients and profiles use a single string, so every shape is accepted:
 // an array, a JSON array string (multipart forms), "Dubai,Sharjah" or "Dubai".
 

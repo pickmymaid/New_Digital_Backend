@@ -52,6 +52,7 @@ const parseJsonFields = (data, defaults = {}) => {
   }
   // Multi-select fields: a list, a JSON list string or a single value from older clients.
   if (data.location !== undefined) data.location = toStringList(data.location);
+  if (data.service !== undefined) data.service = toStringList(data.service);
   if (data.option !== undefined) data.option = toOptionList(data.option);
   return null;
 };

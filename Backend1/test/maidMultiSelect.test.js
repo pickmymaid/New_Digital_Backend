@@ -25,6 +25,12 @@ test('optionFilter matches new lists and legacy single values', () => {
   });
 });
 
+test('maidFilterGenerator matches maids offering any searched service', () => {
+  assert.deepEqual(maidFilterGenerator({ service: ['Driver', 'Caregiver'] }).filter.service, {
+    $in: ['Driver', 'Caregiver'],
+  });
+});
+
 test('maidFilterGenerator filters several locations', () => {
   const { filter } = maidFilterGenerator({ location: ['Dubai', 'Sharjah'], option: ['Live Out'] });
   assert.deepEqual(filter.location, { $in: ['Dubai', 'Sharjah'] });

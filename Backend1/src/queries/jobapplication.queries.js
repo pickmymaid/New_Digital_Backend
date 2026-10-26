@@ -325,6 +325,8 @@ const getCountsJobApplication = async () => {
               },
             },
           },
+          // A maid offering several services counts once under each.
+          { $unwind: { path: '$service', preserveNullAndEmptyArrays: true } },
           {
             $group: {
               _id: '$service',
