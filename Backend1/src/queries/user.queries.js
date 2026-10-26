@@ -116,6 +116,8 @@ const getAllCustomers = async (
       email: 1,
       phone: 1,
       createdAt: 1,
+      // The admin Customers page shows Blocked/Active and the Block/Unblock toggle from this.
+      is_blocked: 1,
       "preference.emirate_of_residence": 1,
       "preference.position_required": 1,
       "preference.area": 1,
