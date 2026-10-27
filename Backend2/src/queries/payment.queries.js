@@ -208,6 +208,7 @@ const getPayments = async (page, limit, search) => {
         amount: 1,
         coupon_code: 1,
         discount_percent: 1,
+        reciept_number: 1,
         name: '$Customers.first_name',
         email: '$Customers.email',
         mobile: '$Customers.phone',
