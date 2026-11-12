@@ -1,6 +1,7 @@
 const { AdminModel } = require("../models/users/admin.model");
 const { CustomerModel } = require("../models/users/customer.model");
 const { CustomerPreferenceModel } = require("../models/users/customerPreference.model");
+const { paymentModel } = require("../models/payment/payment.model");
 const { createUserID } = require("../utils/createUserID/createUserID");
 
 const createCustomer = async (body) => {
@@ -38,9 +39,20 @@ const getCustomerWithEmailOrAccountId = async (id, email) => {
 const getAllCustomers = async (
   page = 1,
   limit = 10,
-  search
+  search,
+  { unpaidOnly = false } = {}
 ) => {
   const skip = (page - 1) * limit;
+
+  // Same "paid" rule as Backend2's coupon checks: status 2 alone isn't counted,
+  // since the expiry job also sets it on orders that were never paid.
+  const baseStages = [];
+  if (unpaidOnly) {
+    const paidUserIds = await paymentModel.distinct("user_id", {
+      $or: [{ is_paid: true }, { status: 1 }],
+    });
+    baseStages.push({ $match: { user_id: { $nin: paidUserIds } } });
+  }
 
   // Build search condition
   const matchStage = {};
@@ -154,6 +166,7 @@ const getAllCustomers = async (
   }
 
   const result = await CustomerModel.aggregate([
+    ...baseStages,
     {
       $facet: {
         data: pipeline,

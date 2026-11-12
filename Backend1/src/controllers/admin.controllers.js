@@ -58,13 +58,14 @@ const teamMemberRoleChangeController = async (req, res) => {
 }
 
 
-const getCustomersController = async (req, res) => {
+// options.unpaidOnly limits the list to customers with no paid payment.
+const customersController = (options) => async (req, res) => {
   try {
     // parseInt of a missing param is NaN, which MongoDB rejects in $skip
     let page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = 100; // fixed page size
     let search = typeof req.query.search === "string" ? req.query.search : "";
-    getCustomersService(page, limit, search)
+    getCustomersService(page, limit, search, options)
       .then((data) => {
         responseHandler(res, 'OK', { customer: data });
       })
@@ -79,6 +80,9 @@ const getCustomersController = async (req, res) => {
     responseHandler(res, 'INTERNAL_SERVER_ERROR');
   }
 };
+
+const getCustomersController = customersController();
+const getUnpaidCustomersController = customersController({ unpaidOnly: true });
 
 const updateCustomerPasswordController = async (req, res) => {
   const { user_id } = req.body;
@@ -148,6 +152,7 @@ module.exports = {
   deleteTeamMemberController,
   teamMemberRoleChangeController,
   getCustomersController,
+  getUnpaidCustomersController,
   updateCustomerPasswordController,
   verifyCustomerPaymentController,
   toggleUserBlockController,

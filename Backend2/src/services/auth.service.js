@@ -7,7 +7,10 @@ const jwt = require('jsonwebtoken');
 const { generateJWT } = require("../utils/generateJWT/generateJWT");
 const { validateJwtToken } = require("../utils/validateJWT/validateJWT");
 const { sendMail } = require("../utils/sendMail/sendMail");
-const { adminLoginMailBody } = require("../utils/mailBody/adminLogin");
+const { adminLoginMailBody, formatUaeTime, ROLE_LABELS } = require("../utils/mailBody/adminLogin");
+
+// Every successful admin-panel login is reported here.
+const ADMIN_LOGIN_ALERT_EMAIL = process.env.ADMIN_LOGIN_ALERT_EMAIL || "pickmymaid@gmail.com";
 const { adminLogoutBody } = require("../utils/mailBody/adminLogout");
 const { createUserID } = require("../utils/createUserID/createUserID");
 const { generateOtp } = require("../utils/generateOtp/generateOtp");
@@ -397,22 +400,23 @@ const adminSignupService = (body) => {
 const adminLoginService = (body) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const adminMail = process.env.SA_EMAIL || '';
-      console.log({ adminMail });
-
       const user = await getAdminWithEmail(body.email);
       if (user && user.status === 'active' && user.password) {
         const isValidPassword = await passwordValidator(body.password, user.password);
         if (isValidPassword) {
+          const role = user.role || (user.is_super_admin ? 'SA' : 'A');
           const token = await generateJWT({
             user_id: user.user_id,
-            role: user.role || (user.is_super_admin ? 'SA' : 'A')
+            role
           }, (user.role === 'SA' || user.is_super_admin) ? '24h' : '10h')
 
-          // adminMail, `${user.name} Logged in to admin panel`, adminLoginMailBody(user?.name || '')
-          sendSesEmailWithAttachment(adminMail, `${user.name} Logged in to admin panel`, adminLoginMailBody(user.name || ''))
-            .then(res => console.log(res))
-            .catch(err => console.log(err))
+          // Login alert to the company inbox. Fire-and-forget: a mail failure must never block the login.
+          const loginAt = new Date();
+          sendSesEmailWithAttachment(
+            ADMIN_LOGIN_ALERT_EMAIL,
+            `Admin login: ${user.name || user.email} (${ROLE_LABELS[role] || role}) at ${formatUaeTime(loginAt)} UAE`,
+            adminLoginMailBody({ name: user.name, email: user.email, role, loginAt })
+          ).catch((err) => console.error('Admin login alert email failed:', err?.response?.data || err?.message || err))
 
           resolve({
             message: messages.success.LOGGED_IN,

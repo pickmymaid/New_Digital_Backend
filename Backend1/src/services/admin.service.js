@@ -75,10 +75,10 @@ const teamMemberRoleChangeService = async (id) => {
   })
 }
 
-const getCustomersService = (page, limit, search) => {
+const getCustomersService = (page, limit, search, options) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const customers = await getAllCustomers(page, limit, search);
+      const customers = await getAllCustomers(page, limit, search, options);
       resolve(customers);
     } catch (error) {
       console.error(error, 'this is error')
