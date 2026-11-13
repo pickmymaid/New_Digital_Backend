@@ -91,8 +91,10 @@ const getAllCustomers = async (
   if (!hasSearch) {
     // Optimization for no search: Sort and Paginate before lookup
     pipeline.push({ $sort: { createdAt: -1 } });
-    pipeline.push({ $skip: skip });
-    pipeline.push({ $limit: limit });
+    if (limit) {
+      pipeline.push({ $skip: skip });
+      pipeline.push({ $limit: limit });
+    }
     pipeline.push({
       $lookup: {
         from: "customerpreferences",
@@ -125,8 +127,10 @@ const getAllCustomers = async (
     });
     pipeline.push({ $match: matchStage });
     pipeline.push({ $sort: { createdAt: -1 } });
-    pipeline.push({ $skip: skip });
-    pipeline.push({ $limit: limit });
+    if (limit) {
+      pipeline.push({ $skip: skip });
+      pipeline.push({ $limit: limit });
+    }
   }
 
   pipeline.push({
@@ -174,20 +178,58 @@ const getAllCustomers = async (
     countPipeline.push({ $count: "total" });
   }
 
-  const result = await CustomerModel.aggregate([
-    ...baseStages,
-    {
-      $facet: {
-        data: pipeline,
-        totalCount: countPipeline,
+  const facets = { data: pipeline, totalCount: countPipeline };
+
+  // plan_status: "expired" = paid before but the plan has run out,
+  // "pending" = started a checkout but never paid, "no_payment" = never started one.
+  let everPaidIds = [];
+  let anyPaymentIds = [];
+  if (inactiveOnly) {
+    [everPaidIds, anyPaymentIds] = await Promise.all([
+      paymentModel.distinct("user_id", { $or: [{ is_paid: true }, { status: 1 }] }),
+      paymentModel.distinct("user_id"),
+    ]);
+    // Per-status totals over every matching customer (all pages, search applied).
+    facets.statusCounts = [
+      ...countPipeline.slice(0, -1), // same filtering as the total, minus $count
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $in: ["$user_id", everPaidIds] },
+              "expired",
+              { $cond: [{ $in: ["$user_id", anyPaymentIds] }, "pending", "no_payment"] },
+            ],
+          },
+          total: { $sum: 1 },
+        },
       },
-    },
-  ]);
+    ];
+  }
+
+  const result = await CustomerModel.aggregate([...baseStages, { $facet: facets }]);
 
   const data = result[0].data;
   const count = result[0].totalCount[0]?.total || 0;
 
-  return { data: data, count };
+  if (!inactiveOnly) {
+    return { data: data, count };
+  }
+
+  const everPaid = new Set(everPaidIds);
+  const anyPayment = new Set(anyPaymentIds);
+  for (const customer of data) {
+    customer.plan_status = everPaid.has(customer.user_id)
+      ? "expired"
+      : anyPayment.has(customer.user_id)
+        ? "pending"
+        : "no_payment";
+  }
+
+  const counts = { total: count, expired: 0, pending: 0, no_payment: 0 };
+  for (const row of result[0].statusCounts) counts[row._id] = row.total;
+
+  return { data: data, count, counts };
 };
 
 const getCustomerWithEmail = async (email) => {

@@ -59,12 +59,13 @@ const teamMemberRoleChangeController = async (req, res) => {
 }
 
 
-// options.unpaidOnly limits the list to customers with no paid payment.
+// options.unpaidOnly limits the list to customers with no paid payment;
+// options.inactiveOnly to customers with no active plan (200 per page).
 const customersController = (options) => async (req, res) => {
   try {
     // parseInt of a missing param is NaN, which MongoDB rejects in $skip
     let page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-    const limit = 100; // fixed page size
+    const limit = options?.inactiveOnly ? 200 : 100; // fixed page size
     let search = typeof req.query.search === "string" ? req.query.search : "";
     getCustomersService(page, limit, search, options)
       .then((data) => {

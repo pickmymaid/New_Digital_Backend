@@ -279,7 +279,10 @@ router.get('/customer/unpaid', validateJwtToken, roleValidator(['SA']), getUnpai
  *     description: >
  *       Same as GET /api/v1/admin/customer, but only customers with no active payment
  *       (no payment with status 1 whose expiryDate is in the future). Includes customers
- *       who never paid and customers whose subscription expired. Requires SA role.
+ *       who never paid and customers whose subscription expired, 200 per page.
+ *       Each customer has plan_status: "expired" (paid before, plan ran out),
+ *       "pending" (started a checkout, never paid) or "no_payment" (never started one).
+ *       Requires SA role.
  *     security:
  *       - BearerAuth: []
  *     parameters:
@@ -288,7 +291,7 @@ router.get('/customer/unpaid', validateJwtToken, roleValidator(['SA']), getUnpai
  *         schema:
  *           type: integer
  *           default: 1
- *         description: Page number (100 per page)
+ *         description: Page number (200 per page)
  *       - in: query
  *         name: search
  *         schema:
@@ -296,7 +299,7 @@ router.get('/customer/unpaid', validateJwtToken, roleValidator(['SA']), getUnpai
  *         description: Search by name, email, phone or preference fields
  *     responses:
  *       200:
- *         description: "Paginated list of customers with no active subscription, in data.customer: { data, count }"
+ *         description: "Paginated list (200 per page) of customers with no active subscription, in data.customer: { data, count, counts: { total, expired, pending, no_payment } }. counts covers all pages."
  *         content:
  *           application/json:
  *             schema:
