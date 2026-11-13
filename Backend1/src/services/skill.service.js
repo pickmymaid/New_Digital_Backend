@@ -5,6 +5,7 @@ const {
   countSkills,
   saveSkill,
   insertSkills,
+  ensureSkillIndexes,
   updateSkill,
   deleteSkillById,
   renameSkillOnMaids,
@@ -60,8 +61,17 @@ const ensureNameAvailable = async (name, exceptId) => {
 }
 
 const seedDefaultSkillsService = async () => {
+  // Build the unique name_key index before seeding: several processes can start at
+  // once (parallel test files, multiple pods), all see an empty collection and
+  // insert the same defaults. With the index in place the losers' inserts are
+  // rejected instead of leaving duplicates that make the index build fail.
+  await ensureSkillIndexes();
   if (await countSkills() > 0) return;
-  await insertSkills(DEFAULT_SKILLS);
+  try {
+    await insertSkills(DEFAULT_SKILLS);
+  } catch (error) {
+    if (error?.code !== 11000) throw error; // another process seeded them first
+  }
 }
 
 const listSkillsService = async ({ includeInactive = false } = {}) => {

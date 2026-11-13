@@ -22,6 +22,10 @@ const saveSkill = async (body) => {
   return await skill.save();
 }
 
+const ensureSkillIndexes = async () => {
+  return await SkillModel.init()
+}
+
 const insertSkills = async (names) => {
   return await SkillModel.insertMany(names.map((name) => ({ name, name_key: name.toLowerCase() })), { ordered: false })
 }
@@ -55,6 +59,7 @@ module.exports = {
   countSkills,
   saveSkill,
   insertSkills,
+  ensureSkillIndexes,
   updateSkill,
   deleteSkillById,
   renameSkillOnMaids,
