@@ -1,5 +1,6 @@
 const { validateJwtToken } = require("../utils/validateJWT/validateJWT");
-const { deleteTeamMemberService, getCustomersService, getTeamMembersService, maidHistory, teamMemberRoleChangeService, toggleUserBlock, updateCustomerPasswordService } = require("../services/admin.service");
+const { deleteTeamMemberService, getCustomersService, getTeamMembersService, maidHistory, teamMemberRoleChangeService, toggleUserBlock, updateCustomerPasswordService, deleteCustomerService } = require("../services/admin.service");
+const { HttpError } = require("../utils/httpError");
 const { responseHandler } = require("../utils/responseHandler/responseHandler");
 const { sendMail } = require("../utils/sendMail/sendMail");
 const paymentServiceClient = require("../integrations/paymentServiceClient");
@@ -83,6 +84,7 @@ const customersController = (options) => async (req, res) => {
 
 const getCustomersController = customersController();
 const getUnpaidCustomersController = customersController({ unpaidOnly: true });
+const getInactiveCustomersController = customersController({ inactiveOnly: true });
 
 const updateCustomerPasswordController = async (req, res) => {
   const { user_id } = req.body;
@@ -131,6 +133,20 @@ const toggleUserBlockController = (req, res) => {
     })
 }
 
+const deleteCustomerController = async (req, res) => {
+  const { user_id } = req.params;
+  try {
+    const result = await deleteCustomerService(user_id);
+    responseHandler(res, 'OK', null, { message: result.message })
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return responseHandler(res, error.status, null, { message: error.message })
+    }
+    logErrorWithSource(error, { meta: { user_id } })
+    responseHandler(res, 'INTERNAL_SERVER_ERROR', null, {})
+  }
+}
+
 const getMaidHistory = (req, res) => {
   const {maid_id} = req.params;
   if(!maid_id){
@@ -153,8 +169,10 @@ module.exports = {
   teamMemberRoleChangeController,
   getCustomersController,
   getUnpaidCustomersController,
+  getInactiveCustomersController,
   updateCustomerPasswordController,
   verifyCustomerPaymentController,
   toggleUserBlockController,
+  deleteCustomerController,
   getMaidHistory,
 };

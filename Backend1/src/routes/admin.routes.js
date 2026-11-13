@@ -1,4 +1,4 @@
-const { getCustomersController, getUnpaidCustomersController, getMaidHistory, teamMemberRoleChangeController, toggleUserBlockController, updateCustomerPasswordController, verifyCustomerPaymentController } = require('./../controllers/admin.controllers');
+const { getCustomersController, getUnpaidCustomersController, getInactiveCustomersController, getMaidHistory, teamMemberRoleChangeController, toggleUserBlockController, updateCustomerPasswordController, verifyCustomerPaymentController, deleteCustomerController } = require('./../controllers/admin.controllers');
 const express = require('express');
 const { deleteTeamMemberController, getTeamMembersController } = require('../controllers/admin.controllers');
 const { validateJwtToken } = require('../middleware/jwtValidator');
@@ -272,6 +272,52 @@ router.get('/customer/unpaid', validateJwtToken, roleValidator(['SA']), getUnpai
 
 /**
  * @openapi
+ * /api/v1/admin/customer/inactive:
+ *   get:
+ *     tags: [Admin V1]
+ *     summary: Get customers with no active subscription (unpaid or expired)
+ *     description: >
+ *       Same as GET /api/v1/admin/customer, but only customers with no active payment
+ *       (no payment with status 1 whose expiryDate is in the future). Includes customers
+ *       who never paid and customers whose subscription expired. Requires SA role.
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number (100 per page)
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by name, email, phone or preference fields
+ *     responses:
+ *       200:
+ *         description: "Paginated list of customers with no active subscription, in data.customer: { data, count }"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Customer'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.get('/customer/inactive', validateJwtToken, roleValidator(['SA']), getInactiveCustomersController)
+
+/**
+ * @openapi
  * /api/v1/admin/verify-payment:
  *   post:
  *     tags: [Admin V1]
@@ -339,5 +385,7 @@ router.post('/verify-payment', validateJwtToken, roleValidator(['SA']), verifyCu
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get('/block-user/:user_id', validateJwtToken, roleValidator(['SA']), toggleUserBlockController)
+// DELETE /api/v1/admin/customer/:user_id — permanently delete a customer who has never paid (409 if they have).
+router.delete('/customer/:user_id', validateJwtToken, roleValidator(['SA']), deleteCustomerController)
 
 module.exports = router;

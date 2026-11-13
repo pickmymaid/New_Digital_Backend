@@ -7,6 +7,11 @@ const { sendMail } = require("../utils/sendMail/sendMail");
 const { CustomerModel } = require("../models/users/customer.model");
 const { paymentModel } = require("../models/payment/payment.model");
 const { MaidHistory } = require("../models/maidsHistory/maidHistory.model");
+const { CustomerPreferenceModel } = require("../models/users/customerPreference.model");
+const { WishtListModel } = require("../models/wishlist/wishlist.model");
+const { FavStatics } = require("../models/favouriteCategoryStatistics/favouriteCategoryStatistics.model");
+const { BlogModel } = require("../models/blogs/blog.model");
+const { HttpError } = require("../utils/httpError");
 
 /**
  * This function returns a promise that resolves with all team members for a given user ID or rejects
@@ -111,6 +116,40 @@ const updateCustomerPasswordService = (user_id) => {
 }
 
 
+// Permanently deletes a customer who has never paid, with everything stored against their
+// user_id. Customers with a paid (or once-paid, now expired/suspended) payment are refused:
+// the payments list, revenue figures and tax invoices all need the customer record, so those
+// accounts should be blocked instead.
+const deleteCustomerService = async (user_id) => {
+  const customer = await CustomerModel.findOne({ user_id }, { _id: 1 });
+  if (!customer) {
+    throw new HttpError('NOT_FOUND', 'Customer not found.');
+  }
+
+  const hasPaid = await paymentModel.exists({ user_id, $or: [{ is_paid: true }, { status: { $in: [1, 2] } }] });
+  if (hasPaid) {
+    throw new HttpError(
+      'CONFLICT',
+      'This customer has paid for a subscription, so they can\'t be deleted — their payments and tax invoices must be kept. Block the customer instead.'
+    );
+  }
+
+  await Promise.all([
+    CustomerPreferenceModel.deleteMany({ user_id }),
+    WishtListModel.deleteMany({ user_id }),
+    FavStatics.deleteMany({ user_id }),
+    // Unpaid checkouts only — the check above guarantees nothing paid is left.
+    paymentModel.deleteMany({ user_id }),
+    BlogModel.updateMany(
+      { $or: [{ 'comments.user_id': user_id }, { likes: user_id }] },
+      { $pull: { comments: { user_id }, likes: user_id } }
+    ),
+  ]);
+  await CustomerModel.deleteOne({ user_id });
+
+  return { message: messages.success.DELETED_SUCCESSFULLY };
+};
+
 const toggleUserBlock = (user_id) => {
   return new Promise(async (resolve, reject) => {
     try{
@@ -180,4 +219,5 @@ module.exports = {
   updateCustomerPasswordService,
   toggleUserBlock,
   maidHistory,
+  deleteCustomerService,
 };

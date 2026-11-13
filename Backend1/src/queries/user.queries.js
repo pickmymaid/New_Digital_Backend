@@ -40,7 +40,7 @@ const getAllCustomers = async (
   page = 1,
   limit = 10,
   search,
-  { unpaidOnly = false } = {}
+  { unpaidOnly = false, inactiveOnly = false } = {}
 ) => {
   const skip = (page - 1) * limit;
 
@@ -52,6 +52,15 @@ const getAllCustomers = async (
       $or: [{ is_paid: true }, { status: 1 }],
     });
     baseStages.push({ $match: { user_id: { $nin: paidUserIds } } });
+  }
+  if (inactiveOnly) {
+    // Active = status 1 (the subscriber check used for maid access) and not past
+    // expiryDate, so customers the expiry cron hasn't reached yet still count as expired.
+    const activeUserIds = await paymentModel.distinct("user_id", {
+      status: 1,
+      $or: [{ expiryDate: { $gt: new Date() } }, { expiryDate: null }],
+    });
+    baseStages.push({ $match: { user_id: { $nin: activeUserIds } } });
   }
 
   // Build search condition
