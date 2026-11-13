@@ -11,4 +11,8 @@ const getAllContacts = async () => {
   return await ContactModel.find({}).sort({ updatedAt: -1 })
 }
 
-module.exports = { saveContact, getAllContacts };
+const deleteContactById = async (id) => {
+  return await ContactModel.findByIdAndDelete(id);
+}
+
+module.exports = { saveContact, getAllContacts, deleteContactById };

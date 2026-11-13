@@ -1,4 +1,4 @@
-const { createContactService, getContactService } = require("../services/contact.service");
+const { createContactService, getContactService, deleteContactService } = require("../services/contact.service");
 const { responseHandler } = require("../utils/responseHandler/responseHandler");
 const { HttpError } = require("../utils/httpError");
 
@@ -22,4 +22,15 @@ const getContactController = (req, res) => {
   })
 }
 
-module.exports = { createContactController, getContactController };
+const deleteContactController = (req, res) => {
+  deleteContactService(req.params.id).then((message) => {
+    responseHandler(res, 'OK', null, { message })
+  }).catch((error) => {
+    if (error instanceof HttpError) {
+      return responseHandler(res, error.status, null, { message: error.message })
+    }
+    responseHandler(res, 'INTERNAL_SERVER_ERROR', null)
+  })
+}
+
+module.exports = { createContactController, getContactController, deleteContactController };

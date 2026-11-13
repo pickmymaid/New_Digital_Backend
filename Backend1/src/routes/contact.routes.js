@@ -1,5 +1,5 @@
 const express = require('express');
-const { createContactController, getContactController } = require('../controllers/contact.controller');
+const { createContactController, getContactController, deleteContactController } = require('../controllers/contact.controller');
 const { validateJwtToken } = require('../middleware/jwtValidator');
 const { roleValidator } = require('../middleware/roleValidator');
 
@@ -66,5 +66,7 @@ const router = express.Router();
  */
 router.post('/', createContactController)
 router.get('/', validateJwtToken, roleValidator(['SA','A']), getContactController)
+// DELETE /api/v1/contact/:id — remove one contact message (same roles that can read them).
+router.delete('/:id', validateJwtToken, roleValidator(['SA','A']), deleteContactController)
 
 module.exports = router;
