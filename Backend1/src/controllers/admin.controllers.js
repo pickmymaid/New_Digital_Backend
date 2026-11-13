@@ -59,15 +59,77 @@ const teamMemberRoleChangeController = async (req, res) => {
 }
 
 
+const INACTIVE_PLAN_STATUSES = ['expired', 'pending', 'no_payment'];
+
+// Calendar days are UAE days (UTC+4, no DST), so "2026-11-13" means
+// 2026-11-13 00:00 to 24:00 in Dubai rather than in UTC.
+const UAE_OFFSET = '+04:00';
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// "YYYY-MM-DD" -> Date at the start of that UAE day, or null if not a real date.
+const parseUaeDay = (value) => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00${UAE_OFFSET}`);
+  if (Number.isNaN(date.getTime())) return null;
+  // Reject rollovers like 2026-02-30, which Date would quietly turn into March 2.
+  const roundTrip = new Date(date.getTime() + 4 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return roundTrip === value ? date : null;
+};
+
+// ?date=YYYY-MM-DD for one day, or ?from=YYYY-MM-DD&to=YYYY-MM-DD (both inclusive,
+// either may be left out). Returns { range: { createdFrom, createdBefore } } or { error }.
+const parseSignupDateFilter = (query) => {
+  const present = (key) => typeof query[key] === 'string' && query[key] !== '';
+  if (present('date') && (present('from') || present('to'))) {
+    return { error: 'Use either date, or from/to, not both.' };
+  }
+  const days = {};
+  for (const key of ['date', 'from', 'to']) {
+    if (query[key] === undefined || query[key] === '') continue;
+    days[key] = parseUaeDay(query[key]);
+    if (!days[key]) return { error: `${key} must be a valid date in YYYY-MM-DD format.` };
+  }
+  if (days.date) {
+    return { range: { createdFrom: days.date, createdBefore: new Date(days.date.getTime() + DAY_MS) } };
+  }
+  if (days.from && days.to && days.from > days.to) {
+    return { error: 'from must be on or before to.' };
+  }
+  return {
+    range: {
+      createdFrom: days.from,
+      createdBefore: days.to ? new Date(days.to.getTime() + DAY_MS) : undefined,
+    },
+  };
+};
+
 // options.unpaidOnly limits the list to customers with no paid payment;
-// options.inactiveOnly to customers with no active plan (200 per page).
+// options.inactiveOnly to customers with no active plan (200 per page),
+// optionally narrowed by ?status= to one of INACTIVE_PLAN_STATUSES.
 const customersController = (options) => async (req, res) => {
   try {
     // parseInt of a missing param is NaN, which MongoDB rejects in $skip
     let page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = options?.inactiveOnly ? 200 : 100; // fixed page size
     let search = typeof req.query.search === "string" ? req.query.search : "";
-    getCustomersService(page, limit, search, options)
+    let queryOptions = options;
+    if (options?.inactiveOnly && req.query.status !== undefined && req.query.status !== "") {
+      const status = req.query.status;
+      if (!INACTIVE_PLAN_STATUSES.includes(status)) {
+        return responseHandler(res, 'BAD_REQUEST', null, {
+          message: `status must be one of: ${INACTIVE_PLAN_STATUSES.join(', ')}.`,
+        });
+      }
+      queryOptions = { ...options, status };
+    }
+    if (options?.inactiveOnly) {
+      const dates = parseSignupDateFilter(req.query);
+      if (dates.error) {
+        return responseHandler(res, 'BAD_REQUEST', null, { message: dates.error });
+      }
+      queryOptions = { ...queryOptions, ...dates.range };
+    }
+    getCustomersService(page, limit, search, queryOptions)
       .then((data) => {
         responseHandler(res, 'OK', { customer: data });
       })

@@ -297,9 +297,38 @@ router.get('/customer/unpaid', validateJwtToken, roleValidator(['SA']), getUnpai
  *         schema:
  *           type: string
  *         description: Search by name, email, phone or preference fields
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [expired, pending, no_payment]
+ *         description: Only customers with this plan_status. Omit for all inactive customers.
+ *       - in: query
+ *         name: date
+ *         schema:
+ *           type: string
+ *           format: date
+ *           example: '2026-11-13'
+ *         description: Only customers who signed up on this day (UAE time, UTC+4). Can't be combined with from/to.
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date
+ *           example: '2026-11-01'
+ *         description: Only customers who signed up on or after this day (UAE time). Can be used alone or with to.
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date
+ *           example: '2026-11-13'
+ *         description: Only customers who signed up on or before this day, inclusive (UAE time). Can be used alone or with from.
  *     responses:
  *       200:
- *         description: "Paginated list (200 per page) of customers with no active subscription, in data.customer: { data, count, counts: { total, expired, pending, no_payment } }. counts covers all pages."
+ *         description: "Paginated list (200 per page) of customers with no active subscription, in data.customer: { data, count, counts: { total, expired, pending, no_payment } }. data and count follow the status filter; counts always covers every status (search and date filters applied, all pages)."
+ *       400:
+ *         description: Invalid status or date value, date combined with from/to, or from after to
  *         content:
  *           application/json:
  *             schema:

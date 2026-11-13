@@ -40,13 +40,21 @@ const getAllCustomers = async (
   page = 1,
   limit = 10,
   search,
-  { unpaidOnly = false, inactiveOnly = false } = {}
+  { unpaidOnly = false, inactiveOnly = false, status, createdFrom, createdBefore } = {}
 ) => {
   const skip = (page - 1) * limit;
 
+  const baseStages = [];
+  // Signup-date window: createdFrom inclusive, createdBefore exclusive (both Dates).
+  if (createdFrom || createdBefore) {
+    const createdAt = {};
+    if (createdFrom) createdAt.$gte = createdFrom;
+    if (createdBefore) createdAt.$lt = createdBefore;
+    baseStages.push({ $match: { createdAt } });
+  }
+
   // Same "paid" rule as Backend2's coupon checks: status 2 alone isn't counted,
   // since the expiry job also sets it on orders that were never paid.
-  const baseStages = [];
   if (unpaidOnly) {
     const paidUserIds = await paymentModel.distinct("user_id", {
       $or: [{ is_paid: true }, { status: 1 }],
@@ -189,6 +197,20 @@ const getAllCustomers = async (
       paymentModel.distinct("user_id", { $or: [{ is_paid: true }, { status: 1 }] }),
       paymentModel.distinct("user_id"),
     ]);
+
+    // ?status= narrows data and count to one plan_status; counts below stays
+    // across all of them so every category's total is still available.
+    const statusFilters = {
+      expired: { user_id: { $in: everPaidIds } },
+      pending: { user_id: { $in: anyPaymentIds, $nin: everPaidIds } },
+      no_payment: { user_id: { $nin: anyPaymentIds } },
+    };
+    if (statusFilters[status]) {
+      const statusMatch = { $match: statusFilters[status] };
+      facets.data = [statusMatch, ...pipeline];
+      facets.totalCount = [statusMatch, ...countPipeline];
+    }
+
     // Per-status totals over every matching customer (all pages, search applied).
     facets.statusCounts = [
       ...countPipeline.slice(0, -1), // same filtering as the total, minus $count
@@ -226,8 +248,11 @@ const getAllCustomers = async (
         : "no_payment";
   }
 
-  const counts = { total: count, expired: 0, pending: 0, no_payment: 0 };
-  for (const row of result[0].statusCounts) counts[row._id] = row.total;
+  const counts = { total: 0, expired: 0, pending: 0, no_payment: 0 };
+  for (const row of result[0].statusCounts) {
+    counts[row._id] = row.total;
+    counts.total += row.total;
+  }
 
   return { data: data, count, counts };
 };
