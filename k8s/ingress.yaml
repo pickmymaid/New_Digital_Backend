@@ -19,16 +19,9 @@ spec:
     - hosts:
         - api.pickmymaid.com
       secretName: pickmymaid-com-api-tls
-    # Old domain, kept during the migration so existing frontend builds,
-    # OAuth callbacks and links in sent emails keep working. It keeps its
-    # existing certificate secret. Remove this block and the last rule
-    # below once nothing uses the old domain.
-    - hosts:
-        - api.backendpickmymaid.site
-      secretName: pickmymaid-api-tls
   rules:
     - host: api.pickmymaid.com
-      http: &routes
+      http:
         paths:
           # Backend2 — auth + payment
           - path: /api/v1/auth
@@ -126,6 +119,3 @@ spec:
           # NOTE: no rule routes to /internal/* on Backend2 — that's
           # deliberate, see ARCHITECTURE.md. It's only reachable via the
           # cluster-internal Service DNS name.
-    # Old domain (migration only) — same routes as above.
-    - host: api.backendpickmymaid.site
-      http: *routes
