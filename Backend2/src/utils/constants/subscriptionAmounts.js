@@ -1,7 +1,7 @@
 // Package prices in fils (AED * 100) — what the payment gateway is charged
-// before any coupon. Starter (type 3) is AED 0.38.
+// before any coupon. Starter (type 3) is AED 0.09 (about INR 2).
 const getSubscriptionAmount = (type) => {
-    return type == 0 ? 35000 : type == 1 ? 49500 : type === 3 ? 38 : 89900;
+    return type == 0 ? 35000 : type == 1 ? 49500 : type === 3 ? 9 : 89900;
 }
 
 // What records created before `amount` was stored on payments were charged

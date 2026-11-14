@@ -89,7 +89,7 @@ after(async () => {
 test('applyDiscount takes the percentage off an amount in fils', async () => {
   await ready;
   assert.equal(couponService.applyDiscount(35000, 10), 31500);
-  assert.equal(couponService.applyDiscount(38, 10), 34); // Starter, AED 0.38 -> 0.34
+  assert.equal(couponService.applyDiscount(9, 10), 8); // Starter, AED 0.09 -> 0.08
   assert.equal(couponService.applyDiscount(49500, 15), 42075);
   assert.equal(couponService.applyDiscount(89900, undefined), 89900);
 });
