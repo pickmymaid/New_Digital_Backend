@@ -1,6 +1,6 @@
 # Deploying to DigitalOcean Kubernetes (DOKS)
 
-**Status: live.** `api.backendpickmymaid.site` DNS already points at this
+**Status: live.** `api.pickmymaid.com` DNS already points at this
 cluster's ingress load balancer and is serving real traffic — the droplet
 that used to run the `server/` monolith has been decommissioned and its
 deploy files removed from this repo. The steps below are how the stack
@@ -92,7 +92,7 @@ kubectl apply -f ingress.yaml
 kubectl get pods -n pickmymaid
 kubectl get hpa -n pickmymaid
 kubectl logs -n pickmymaid -l app=backend2
-curl -X POST https://api.backendpickmymaid.site/api/v1/auth/customer/login   # expect a 400 validation error, not a connection failure
+curl -X POST https://api.pickmymaid.com/api/v1/auth/customer/login   # expect a 400 validation error, not a connection failure
 ```
 
 There's no `/health` route exposed through the ingress (`k8s/ingress.yaml`

@@ -104,7 +104,7 @@ compose/cluster-internal service name.
 1. **Kubernetes on DigitalOcean (DOKS)** — `k8s/`. Deployments, Services,
    Ingress, HPA (Backend1 only — see below), cert-manager for TLS. See
    `k8s/README.md` for the apply order. **This is what's live in
-   production** — `api.backendpickmymaid.site` DNS points here, and the
+   production** — `api.pickmymaid.com` DNS points here, and the
    old droplet + `server/` monolith have been decommissioned and removed
    from this repo.
 2. **Docker Compose + nginx** — `docker-compose.microservices.yml` (dev,

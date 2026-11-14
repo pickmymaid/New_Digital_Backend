@@ -10,7 +10,7 @@ what the code actually enforces.
 | Environment | Backend1 (admin/maids/blog/contact/analytics) | Backend2 (auth/payment) |
 |---|---|---|
 | Local dev (docker-compose.microservices.yml) | `http://localhost:8080` | `http://localhost:8081` |
-| Production (via nginx or k8s Ingress) | `https://api.backendpickmymaid.site` | `https://api.backendpickmymaid.site` |
+| Production (via nginx or k8s Ingress) | `https://api.pickmymaid.com` | `https://api.pickmymaid.com` |
 
 In production both backends sit behind the same host/domain — nginx
 (`nginx/nginx.conf`) or the k8s Ingress (`k8s/ingress.yaml`) routes by
