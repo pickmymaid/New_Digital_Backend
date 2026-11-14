@@ -33,8 +33,8 @@ app.set('trust proxy', 1);
 
 // Same cookie name + COOKIE_KEY as Backend1, so a session cookie set by
 // this service's /api/v2/auth/local (or OAuth) login is readable there too.
-// The frontend (www.pickmymaid.com) and API (api.backendpickmymaid.site) are
-// different sites, so the cookie must be SameSite=None; Secure to be sent.
+// The frontend (www.pickmymaid.com) and API (api.pickmymaid.com) share a
+// registrable domain; SameSite=None; Secure also covers other frontend origins.
 app.use(
   cookieSession({
     name: "session",

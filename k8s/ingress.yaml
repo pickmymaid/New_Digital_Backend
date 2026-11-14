@@ -3,7 +3,7 @@
 #   helm install ingress-nginx ingress-nginx/ingress-nginx \
 #     --namespace ingress-nginx --create-namespace
 # That install provisions a DigitalOcean Load Balancer automatically —
-# point api.backendpickmymaid.site's DNS A record at its external IP
+# point api.pickmymaid.com's DNS A record at its external IP
 # (`kubectl get svc -n ingress-nginx` after install).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -17,10 +17,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - api.backendpickmymaid.site
-      secretName: pickmymaid-api-tls
+        - api.pickmymaid.com
+      secretName: pickmymaid-com-api-tls
   rules:
-    - host: api.backendpickmymaid.site
+    - host: api.pickmymaid.com
       http:
         paths:
           # Backend2 — auth + payment
