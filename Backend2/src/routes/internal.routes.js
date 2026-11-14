@@ -1,6 +1,6 @@
 const express = require('express');
 const { internalAuth } = require('../middleware/internalAuth');
-const { verifyPaymentService } = require('../services/v2/payment.service');
+const { verifyPaymentService, reconcilePendingPayments } = require('../services/v2/payment.service');
 const { expireSubscriptions } = require('../utils/CronJob/Cronjob');
 const { responseHandler } = require('../utils/responseHandler/responseHandler');
 const logger = require('../config/logger');
@@ -37,6 +37,21 @@ router.post('/expire-subscriptions', internalAuth, async (req, res) => {
   } catch (error) {
     logErrorWithSource(error, {});
     responseHandler(res, 'INTERNAL_SERVER_ERROR', null, { message: error?.message || 'Could not expire subscriptions.' });
+  }
+});
+
+// Triggered every few minutes by the K8s CronJob in
+// k8s/06-backend2-reconcile-payments.yaml. Activates N-Genius orders that
+// were paid but never confirmed (webhook missed, customer closed the tab).
+// Safe to run alongside the webhook and return page: each order is
+// activated, and its receipt sent, exactly once.
+router.post('/reconcile-payments', internalAuth, async (req, res) => {
+  try {
+    const data = await reconcilePendingPayments();
+    responseHandler(res, 'OK', data);
+  } catch (error) {
+    logErrorWithSource(error, {});
+    responseHandler(res, 'INTERNAL_SERVER_ERROR', null, { message: error?.message || 'Could not reconcile payments.' });
   }
 });
 

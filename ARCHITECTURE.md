@@ -126,6 +126,32 @@ you deploy via either of those instead, either restore the in-process
 cron there or run `expireSubscriptions()` from a separate scheduled
 process, and keep Backend2 at 1 instance until you do.
 
+## Payment confirmation (N-Genius)
+
+An order becomes paid in exactly one function,
+`confirmPayment()` in `Backend2/src/services/v2/payment.service.js`. It
+always reads the order back from N-Genius, checks the charged amount and
+currency against the stored record, and flips it to paid with a single
+conditional update, so the plan is activated and the receipt sent once no
+matter how many callers race. Four independent callers use it:
+
+1. **Webhook** — `POST /api/v2/payment/webhook`, called by N-Genius on
+   order changes. Requires the `PG_WEBHOOK_SECRET` header configured in the
+   N-Genius portal (header name `PG_WEBHOOK_HEADER`, default
+   `x-webhook-secret`). Disabled (404) while the secret is unset.
+2. **Return page** — `POST /api/v2/payment/acknowledge/:ref`. No session
+   required (the session cookie is often lost on the trip to the gateway);
+   if a session is present it must own the order.
+3. **Reconcile job** — `POST /internal/reconcile-payments`, run every 5
+   minutes by `k8s/06-backend2-reconcile-payments.yaml`. Rechecks
+   unconfirmed N-Genius orders from the last 48 hours. Like the expiry job,
+   **PM2/Docker Compose deploys have no scheduler for it**: call the
+   endpoint from cron there.
+4. **Admin "verify payment"** — Backend1 → `POST /internal/verify-payment`.
+
+Unconfirmed orders are no longer deleted when another order is paid, so a
+customer who paid twice keeps both records.
+
 ## What's NOT done here
 
 - **Future hardening ideas, not built now**: mTLS/service mesh instead of

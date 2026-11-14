@@ -163,6 +163,10 @@ jobs:
         if: matrix.key == 'backend2'
         run: kubectl apply -f k8s/05-backend2-cronjob.yaml
 
+      - name: Apply payment-reconcile CronJob (Backend2 only)
+        if: matrix.key == 'backend2'
+        run: kubectl apply -f k8s/06-backend2-reconcile-payments.yaml
+
       # Secret values come straight from this repo's GitHub Actions secrets
       # and are piped directly into kubectl — they're never written to a
       # file in the repo or checked out anywhere. Uses --dry-run=client so
@@ -223,6 +227,7 @@ jobs:
           PG_OUTLET_REFERENCE: ${{ secrets.PG_OUTLET_REFERENCE }}
           PG_BASE_URL: ${{ secrets.PG_BASE_URL }}
           PAYMENT_REDIRECT_URL: ${{ secrets.PAYMENT_REDIRECT_URL }}
+          PG_WEBHOOK_SECRET: ${{ secrets.PG_WEBHOOK_SECRET }}
           REDIRECT_URL: ${{ secrets.REDIRECT_URL }}
           COMPANY_TOKEN: ${{ secrets.COMPANY_TOKEN }}
           COMPANY_SERVICE: ${{ secrets.COMPANY_SERVICE }}
@@ -243,6 +248,7 @@ jobs:
             --from-literal=PG_OUTLET_REFERENCE="$PG_OUTLET_REFERENCE" \
             --from-literal=PG_BASE_URL="$PG_BASE_URL" \
             --from-literal=PAYMENT_REDIRECT_URL="$PAYMENT_REDIRECT_URL" \
+            --from-literal=PG_WEBHOOK_SECRET="$PG_WEBHOOK_SECRET" \
             --from-literal=REDIRECT_URL="$REDIRECT_URL" \
             --from-literal=COMPANY_TOKEN="$COMPANY_TOKEN" \
             --from-literal=COMPANY_SERVICE="$COMPANY_SERVICE" \
