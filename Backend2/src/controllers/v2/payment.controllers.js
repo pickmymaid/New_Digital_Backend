@@ -1,4 +1,5 @@
-const { createPaymentService, getInvoice, verifyPaymentService } = require("../../services/v2/payment.service");
+const crypto = require("crypto");
+const { createPaymentService, getInvoice, verifyPaymentService, handleGatewayWebhook } = require("../../services/v2/payment.service");
 const { validateJwtToken } = require("../../utils/validateJWT/validateJWT");
 const { responseHandler } = require("../../utils/responseHandler/responseHandler");
 const logger = require("../../config/logger");
@@ -30,12 +31,45 @@ const acknowledgePaymentController = async (req, res) => {
         .then((data) => {
             responseHandler(res,'OK',data)
         }).catch((error) => {
-            logErrorWithSource(error , {meta: {body: req.body}})
-            // Customer-facing reasons are rejected as strings; anything else (e.g. a gateway error) stays in the logs.
-            const message = typeof error === 'string' ? error : 'Could not verify the payment. Please try again.'
-            responseHandler(res,'INTERNAL_SERVER_ERROR',null,{message})
+            // Customer-facing reasons (unknown order, not paid yet) are rejected
+            // as strings: an expected outcome, so a 400 the return page retries.
+            if (typeof error === 'string') {
+                return responseHandler(res,'BAD_REQUEST',null,{message: error})
+            }
+            logErrorWithSource(error , {meta: {ref: params?.ref}})
+            responseHandler(res,'INTERNAL_SERVER_ERROR',null,{message: 'Could not verify the payment. Please try again.'})
         })
 
+}
+
+const secretsMatch = (given, expected) => {
+    const a = Buffer.from(String(given ?? ''));
+    const b = Buffer.from(String(expected));
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+// N-Genius calls this when an order changes. It must carry the custom
+// header set up in the N-Genius portal. A non-2xx answer makes N-Genius
+// retry, so only a real failure to process returns one.
+const gatewayWebhookController = async (req, res) => {
+    const secret = process.env.PG_WEBHOOK_SECRET;
+    if (!secret) {
+        return responseHandler(res, 'NOT_FOUND', null, {message: 'Payment webhook is not enabled.'});
+    }
+    const headerName = (process.env.PG_WEBHOOK_HEADER || 'x-webhook-secret').toLowerCase();
+    if (!secretsMatch(req.headers[headerName], secret)) {
+        logger.warn('Rejected payment webhook with a missing or wrong secret');
+        return responseHandler(res, 'UNAUTHORIZED');
+    }
+
+    try {
+        const result = await handleGatewayWebhook(req.body);
+        logger.info('Payment webhook received', {meta: {event: req.body?.eventName, ref: req.body?.order?.reference, ...result}});
+        responseHandler(res, 'OK', result);
+    } catch (error) {
+        logErrorWithSource(error, {meta: {event: req.body?.eventName, ref: req.body?.order?.reference}});
+        responseHandler(res, 'INTERNAL_SERVER_ERROR', null, {message: 'Could not process the webhook.'});
+    }
 }
 
 // Customers can only download their own invoices: the owner comes from the
@@ -87,6 +121,7 @@ const sendInvoiceToMail = async (req, res) => {
 module.exports = {
   createPaymentController,
   acknowledgePaymentController,
+  gatewayWebhookController,
   downloadInvoice,
   sendInvoiceToMail,
 };

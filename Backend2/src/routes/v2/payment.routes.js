@@ -1,5 +1,5 @@
 const express = require("express");
-const { acknowledgePaymentController, createPaymentController, downloadInvoice } = require("../../controllers/v2/payment.controllers");
+const { acknowledgePaymentController, createPaymentController, downloadInvoice, gatewayWebhookController } = require("../../controllers/v2/payment.controllers");
 const { validateJwtToken } = require("../../middleware/jwtValidator");
 const { validateUser } = require("../../middleware/validateUser");
 
@@ -51,10 +51,9 @@ router.post('/create-payment',validateUser,createPaymentController);
  *     tags: [Payment V2]
  *     summary: Acknowledge a completed payment
  *     description: >
- *       Called after the payment gateway redirects back. Verifies the payment status and activates the customer subscription.
- *       Requires an active session (`CookieAuth`).
- *     security:
- *       - CookieAuth: []
+ *       Called after the payment gateway redirects back. Reads the order from N-Genius and, if it was paid,
+ *       activates the subscription. Works without a session, because the session cookie is often lost on the
+ *       way back from the gateway; when a session is present the order must belong to that customer.
  *     parameters:
  *       - in: path
  *         name: ref
@@ -76,14 +75,34 @@ router.post('/create-payment',validateUser,createPaymentController);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
- *       401:
- *         description: Unauthorized
+ *       400:
+ *         description: Unknown order, order belongs to another customer, or not paid (yet)
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/acknowledge/:ref',validateUser, acknowledgePaymentController)
+router.post('/acknowledge/:ref', acknowledgePaymentController)
+
+/**
+ * @openapi
+ * /api/v2/payment/webhook:
+ *   post:
+ *     tags: [Payment V2]
+ *     summary: N-Genius order webhook
+ *     description: >
+ *       Called by N-Genius when an order changes. Must carry the header named by PG_WEBHOOK_HEADER
+ *       (default `x-webhook-secret`) with the value of PG_WEBHOOK_SECRET, as configured in the N-Genius portal.
+ *       The order is read back from N-Genius before anything is activated, so the body is only a hint.
+ *     responses:
+ *       200:
+ *         description: Received
+ *       401:
+ *         description: Missing or wrong webhook secret
+ *       404:
+ *         description: Webhook not enabled on this server (PG_WEBHOOK_SECRET unset)
+ */
+router.post('/webhook', gatewayWebhookController)
 
 /**
  * @openapi

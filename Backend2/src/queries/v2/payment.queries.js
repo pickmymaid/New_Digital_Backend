@@ -63,49 +63,30 @@ const getPaymentDetails = async (ref, user_id) => {
     }
 }
 
-const verifyPayment = async(ref, user_id) => {
-    const paymentDoc = await paymentModel.findOne({transRef: ref, user_id});
-
-    if(!paymentDoc){
-        throw new Error('User and token missmatch')
-    }else if(paymentDoc?.status !== 1){
-        const expiryDate = subscriptionExpiryDateGenerator(paymentDoc?.type);
-        const paymentDate = new Date();
-        await paymentModel.updateOne({user_id, transRef: ref},{
-            $set: {
-                status: 1,
-                is_paid: true,
-                expiryDate,
-                paymentDate
-            }
-        })
-        await paymentModel.deleteMany({user_id, status: 0})
-
-        return {
-            reciept: paymentDoc?.reciept_number,
-            type: paymentDoc?.type,
-            ref: paymentDoc?.transRef,
-            expiryDate,
-            paymentDate,
-            status: 1,
-            amount: paymentDoc?.amount,
-            coupon_code: paymentDoc?.coupon_code,
-            discount_percent: paymentDoc?.discount_percent
-        }
-    }else{
-        return {
-            reciept: paymentDoc?.reciept_number,
-            type: paymentDoc?.type,
-            ref: paymentDoc?.transRef,
-            expiryDate: paymentDoc?.expiryDate,
-            paymentDate: paymentDoc?.paymentDate,
-            status: paymentDoc?.status,
-            amount: paymentDoc?.amount,
-            coupon_code: paymentDoc?.coupon_code,
-            discount_percent: paymentDoc?.discount_percent
-        }
-    }
-
+const findPaymentByRef = async (ref) => {
+    return await paymentModel.findOne({transRef: ref});
 }
 
-module.exports = { savePayment, getAccessTokenWithRef, getPaymentDetails, verifyPayment };
+// Atomic unpaid -> paid flip. Only the caller that gets modifiedCount 1 did
+// it, so the webhook, the customer's return page, the reconcile job and
+// any number of replicas can all confirm the same order at once and the
+// plan is activated (and the receipt sent) exactly once.
+const markPaidIfUnpaid = async (ref, expiryDate, paymentDate) => {
+    return await paymentModel.updateOne(
+        {transRef: ref, status: {$ne: 1}, is_paid: {$ne: true}},
+        {$set: {status: 1, is_paid: true, expiryDate, paymentDate}}
+    );
+}
+
+// N-Genius orders still waiting for confirmation. Every N-Genius order
+// stores the amount it was created with; v1 (3G) records never do.
+const findUnconfirmedNgeniusPayments = async (from, to, limit) => {
+    return await paymentModel.find({
+        status: 0,
+        is_paid: {$ne: true},
+        amount: {$exists: true},
+        createdAt: {$gte: from, $lte: to},
+    }).sort({createdAt: 1}).limit(limit);
+}
+
+module.exports = { savePayment, getAccessTokenWithRef, getPaymentDetails, findPaymentByRef, markPaidIfUnpaid, findUnconfirmedNgeniusPayments };

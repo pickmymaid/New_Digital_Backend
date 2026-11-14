@@ -82,6 +82,7 @@ kubectl apply -f backend1.yaml
 kubectl apply -f backend2.yaml
 kubectl apply -f 04-hpa.yaml
 kubectl apply -f 05-backend2-cronjob.yaml
+kubectl apply -f 06-backend2-reconcile-payments.yaml
 kubectl apply -f ingress.yaml
 ```
 

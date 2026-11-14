@@ -1,0 +1,39 @@
+# Safety net for N-Genius payments: every 5 minutes, asks Backend2 to check
+# orders from the last 48 hours that are still unconfirmed and activate the
+# ones N-Genius says were paid (webhook missed, customer closed the tab or
+# lost their session on the way back). Runs once cluster-wide, like the
+# expiry job in 05-backend2-cronjob.yaml, so any number of Backend2
+# replicas is fine.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backend2-reconcile-payments
+  namespace: pickmymaid
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 240
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: reconcile-payments
+              image: curlimages/curl:8.10.1
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  curl -sf --max-time 200 -X POST "http://backend2:8081/internal/reconcile-payments" \
+                    -H "x-internal-token: $INTERNAL_SERVICE_TOKEN"
+              env:
+                - name: INTERNAL_SERVICE_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: shared-secret
+                      key: INTERNAL_SERVICE_TOKEN
