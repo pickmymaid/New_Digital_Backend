@@ -1,4 +1,5 @@
-const { getPayments, getPaymentsByUserID, manualverifyToken, verifyToken, getPaymentById, updatePaymentById } = require('./../queries/payment.queries');
+const { getPayments, getPaymentsByUserID, manualverifyToken, verifyToken, getPaymentById, updatePaymentById, markPaidByIdIfUnpaid } = require('./../queries/payment.queries');
+const { sendPaymentReceipt } = require('./v2/payment.service');
 const { generateToken } = require('../queries/payment.queries');
 const messages = require('../utils/constants/messages');
 const jwt = require('jsonwebtoken');
@@ -165,7 +166,20 @@ const updatePaymentService = async (id, body) => {
   if (!id || !mongoose.isValidObjectId(id)) throw new HttpError('BAD_REQUEST', 'Invalid payment id.');
   const payment = await getPaymentById(id);
   if (!payment) throw new HttpError('NOT_FOUND', 'Payment not found.');
-  return await updatePaymentById(payment._id, buildPaymentUpdate(payment, body));
+  const changes = buildPaymentUpdate(payment, body);
+
+  // An admin marking an unpaid order as active means it has been paid:
+  // record it as paid and email the customer their invoice (with a copy to
+  // the office), exactly once. Re-activating an already paid subscription
+  // (e.g. expired -> active) doesn't send another invoice.
+  if (changes.status === 1 && payment.status !== 1 && payment.is_paid !== true) {
+    const paid = await markPaidByIdIfUnpaid(payment._id, { ...changes, is_paid: true, paymentDate: new Date() });
+    if (!paid) return await getPaymentById(payment._id);
+    sendPaymentReceipt(paid);
+    return paid;
+  }
+
+  return await updatePaymentById(payment._id, changes);
 };
 
 module.exports = {

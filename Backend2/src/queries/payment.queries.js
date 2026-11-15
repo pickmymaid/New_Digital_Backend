@@ -280,6 +280,17 @@ const updatePaymentById = async (id, changes) => {
   return await paymentModel.findById(id);
 };
 
+// Atomic unpaid -> paid flip for an admin edit. Returns the updated payment,
+// or null when it was already paid, so a double-click (or two admins) can't
+// send the customer two invoices.
+const markPaidByIdIfUnpaid = async (id, changes) => {
+  return await paymentModel.findOneAndUpdate(
+    { _id: id, status: { $ne: 1 }, is_paid: { $ne: true } },
+    { $set: changes },
+    { new: true }
+  );
+};
+
 const manualverifyToken = async (body) => {
   try {
     const parser = new xml2js.Parser();
@@ -335,4 +346,5 @@ module.exports = {
   manualverifyToken,
   getPaymentById,
   updatePaymentById,
+  markPaidByIdIfUnpaid,
 };
