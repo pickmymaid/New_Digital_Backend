@@ -15,6 +15,7 @@ const {
   getJobApplicationbyIdDashboardFormService,
   getJobApplicationbyIdFormService,
   getJobApplicationFormService,
+  getMaidDocumentUrlService,
   getNewjobService,
   getVerifiedAndReferenceApplicationFormService,
   listAllWishlistService,
@@ -223,6 +224,21 @@ const getJobApplicationbyidDashboardFormController = async (req, res) => {
   } catch (error) {
     logErrorWithSource(error, {meta: {body: req.body}})
     console.log(error);
+    responseHandler(res, 'INTERNAL_SERVER_ERROR');
+  }
+};
+
+// Admin side: a short-lived link to one of a maid's private documents.
+const getMaidDocumentUrlController = async (req, res) => {
+  try {
+    const { id, key, download } = req.body || {};
+    const data = await getMaidDocumentUrlService(id, key, download);
+    responseHandler(res, 'OK', data);
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return responseHandler(res, error.status, null, { message: error.message });
+    }
+    logErrorWithSource(error, { meta: { body: req.body } });
     responseHandler(res, 'INTERNAL_SERVER_ERROR');
   }
 };
@@ -579,6 +595,7 @@ const listAllWishlist = (req, res) => {
 }
 
 module.exports = {
+  getMaidDocumentUrlController,
   createJobApplicationClientController,
   createJobApplicationFrontendController,
   getJobApplicationFormController,

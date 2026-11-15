@@ -142,16 +142,19 @@ const getJobApplicationbyid = async (id, userId) => {
     },
   ]
 
+  // word_file (documents) is never public — admins open them via /job/document-url.
   if(isSubscriber.length > 0 && !user?.is_blocked){
     pipeline.push({
       $project: {
-        wishlist_status: 0
+        wishlist_status: 0,
+        word_file: 0
       }
     })
   }else{
     pipeline.push({
       $project: {
         wishlist_status: 0,
+        word_file: 0,
         mobile: 0,
         botim_number: 0,
         uae_no: 0,
@@ -259,7 +262,7 @@ const getVerifiedAndReferenceJobApplication = async (user) => {
     return await jobApplicationModel
       .find({
          status: 1
-      })
+      }, { word_file: 0 })
       .sort({ date: 1 });
   } else {
     return await jobApplicationModel
@@ -268,6 +271,7 @@ const getVerifiedAndReferenceJobApplication = async (user) => {
            status: 1
         },
         {
+          word_file: 0,
           mobile: 0,
           botim_number: 0,
           uae_no: 0,
@@ -408,7 +412,8 @@ const getFeaturedMaids = async (user_id, type) => {
     },
     {
       $project: {
-        wishlist_status: 0
+        wishlist_status: 0,
+        word_file: 0
       }
     }
   ]
@@ -522,7 +527,15 @@ const getAllFavoriteMaids = async(user_id) => {
   return data;
 }
 
+// The maid's document stored under `key`, or null — so only real document keys get signed.
+const getMaidDocument = async (id, key) => {
+  const find = isValidMongoId(id) ? { _id: id } : { ref_number: id };
+  const maid = await jobApplicationModel.findOne({ ...find, "word_file.image": key }, { "word_file.$": 1 });
+  return maid?.word_file?.[0] || null;
+};
+
 module.exports = {
+  getMaidDocument,
   createJobApplicationClientForm,
   createJobApplicationFrontend,
   getJobApplication,

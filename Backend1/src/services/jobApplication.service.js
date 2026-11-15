@@ -26,7 +26,9 @@ const {
   searchNewJob,
   updateJobApplication,
   uploadMaidHistory,
+  getMaidDocument,
 } = require('../queries/jobapplication.queries');
+const { getSignedFileUrl, SIGNED_URL_TTL_SECONDS } = require('../utils/fileUpload/signedUrl');
 const { compareObjects } = require('../utils/compareObject/compareObject');
 const { sanitizeRichText } = require('../utils/sanitizeHtml/sanitizeHtml');
 const messages = require('../utils/constants/messages');
@@ -427,7 +429,19 @@ const listAllWishlistService = (user_id) => {
   })
 }
 
+// Admin-only temporary link to one of a maid's private documents.
+const getMaidDocumentUrlService = async (id, key, download) => {
+  if (typeof id !== 'string' || !id || typeof key !== 'string' || !key) {
+    throw new HttpError('BAD_REQUEST', 'Maid id and document key are required.');
+  }
+  const doc = await getMaidDocument(id, key);
+  if (!doc) throw new HttpError('NOT_FOUND', 'Document not found.');
+  const url = await getSignedFileUrl(doc.image, { filename: doc.name, download: download === true });
+  return { url, expiresIn: SIGNED_URL_TTL_SECONDS };
+};
+
 module.exports = {
+  getMaidDocumentUrlService,
   postJobApplicationClientFormService,
   createJobApplicationFrontendService,
   getJobApplicationFormService,
