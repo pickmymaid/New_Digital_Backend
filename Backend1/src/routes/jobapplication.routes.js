@@ -5,6 +5,7 @@ const {
   createJobApplicationDashboardController,
   deleteJobApplicationController,
   getJobApplicationFormController,
+  getMaidDocumentUrlController,
   updateJobApplicationFormController,
   verifyJobApplicationController,
 } = require('../controllers/jobApplication.controller');
@@ -284,6 +285,39 @@ router.post('/id', getJobApplicationbyidFormController);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/id-dashboard',validateJwtToken,roleValidator(['SA','A']), getJobApplicationbyidDashboardFormController);
+
+/**
+ * @openapi
+ * /api/v1/job/document-url:
+ *   post:
+ *     tags: [Maids V1]
+ *     summary: Temporary link to a maid's document (admin)
+ *     description: >
+ *       Maid documents are stored private. Returns a signed link (valid 10 minutes) to one of
+ *       the maid's `word_file` documents. `key` must be that document's stored `image` value.
+ *       `download: true` makes the browser save the file under its original name. SA/A only.
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [id, key]
+ *             properties:
+ *               id: { type: string, description: Maid _id or ref_number }
+ *               key: { type: string, description: The document's stored image key }
+ *               download: { type: boolean }
+ *     responses:
+ *       200:
+ *         description: Signed link
+ *       400:
+ *         description: Missing id or key
+ *       404:
+ *         description: No such document on this maid
+ */
+router.post('/document-url', validateJwtToken, roleValidator(['SA','A']), getMaidDocumentUrlController);
 
 /**
  * @openapi
