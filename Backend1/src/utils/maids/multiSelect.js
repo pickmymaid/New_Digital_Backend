@@ -25,12 +25,14 @@ const toOptionList = (value) => [
   ...new Set(toStringList(value).flatMap((v) => (v === LIVE_IN_AND_OUT ? [LIVE_IN, LIVE_OUT] : [v]))),
 ];
 
-// Mongo filter for the website's Position filter. "Live In" also matches legacy
-// "Live In And Live Out" profiles; "Live In And Live Out" matches maids who do both.
+// Mongo filter for the website's Position filter. "Live In" and "Live Out" also
+// match legacy "Live In And Live Out" profiles; "Live In And Live Out" matches
+// maids who do both. "Part Time" / "Full Time" match only maids who list them.
 const optionFilter = (values) => {
   const plain = values.filter((v) => v !== LIVE_IN_AND_OUT);
+  const includesLegacy = plain.includes(LIVE_IN) || plain.includes(LIVE_OUT);
   const conditions = [];
-  if (plain.length) conditions.push({ option: { $in: [...plain, LIVE_IN_AND_OUT] } });
+  if (plain.length) conditions.push({ option: { $in: includesLegacy ? [...plain, LIVE_IN_AND_OUT] : plain } });
   if (values.includes(LIVE_IN_AND_OUT)) {
     conditions.push({ option: LIVE_IN_AND_OUT }, { option: { $all: [LIVE_IN, LIVE_OUT] } });
   }

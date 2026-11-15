@@ -25,6 +25,14 @@ test('optionFilter matches new lists and legacy single values', () => {
   });
 });
 
+test('optionFilter matches Part Time / Full Time without legacy live-in profiles', () => {
+  assert.deepEqual(optionFilter(['Part Time']), { option: { $in: ['Part Time'] } });
+  assert.deepEqual(optionFilter(['Full Time', 'Part Time']), { option: { $in: ['Full Time', 'Part Time'] } });
+  assert.deepEqual(optionFilter(['Live Out', 'Part Time']), {
+    option: { $in: ['Live Out', 'Part Time', 'Live In And Live Out'] },
+  });
+});
+
 test('maidFilterGenerator matches maids offering any searched service', () => {
   assert.deepEqual(maidFilterGenerator({ service: ['Driver', 'Caregiver'] }).filter.service, {
     $in: ['Driver', 'Caregiver'],
