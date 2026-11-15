@@ -247,6 +247,36 @@ test('the webhook needs the configured secret and then confirms the order', asyn
   delete process.env.PG_WEBHOOK_SECRET;
 });
 
+test('an admin marking an unpaid order active emails one invoice, copied to the office', async () => {
+  await ready;
+  const adminPayments = require('../src/services/payment.service');
+  const ref = await createPending();
+  const id = String((await paymentModel.findOne({ transRef: ref }))._id);
+  const expiryDate = new Date(Date.now() + 30 * 24 * 60 * MINUTE).toISOString();
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 300));
+
+  // Two admins (or a double-click) at once still send a single invoice.
+  const results = await Promise.all([1, 2].map(() => adminPayments.updatePaymentService(id, { status: 1, expiryDate })));
+  assert.ok(results.every((p) => p.status === 1));
+  const saved = await paymentModel.findById(id).lean();
+  assert.equal(saved.is_paid, true);
+  assert.ok(saved.paymentDate instanceof Date);
+
+  await waitFor(() => mailMock.mock.callCount() >= 1);
+  await settle();
+  assert.equal(mailMock.mock.callCount(), 1);
+  const [to, , , , attachments, cc] = mailMock.mock.calls[0].arguments;
+  assert.equal(to, `pay-test-${suffix}@example.invalid`);
+  assert.equal(cc, 'pickmymaid@gmail.com');
+  assert.match(attachments[0].filename, /Invoice\.pdf$/);
+
+  // Suspending and re-activating an already paid subscription sends nothing new.
+  await adminPayments.updatePaymentService(id, { status: 2 });
+  await adminPayments.updatePaymentService(id, { status: 1, expiryDate });
+  await settle();
+  assert.equal(mailMock.mock.callCount(), 1);
+});
+
 test('the reconcile job confirms missed payments and leaves the rest alone', async () => {
   await ready;
   const missed = await createPending({ ageMs: 10 * MINUTE, gatewayState: 'PURCHASED' });

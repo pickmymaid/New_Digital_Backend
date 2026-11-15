@@ -106,6 +106,14 @@ const sendReceipt = async (summary, user_id) => {
     );
 };
 
+// Fire-and-forget receipt for a payment that has just become paid. A failed
+// mail is logged, never thrown: the payment is already recorded as paid.
+const sendPaymentReceipt = (payment) => {
+    return sendReceipt(paymentSummary(payment), payment.user_id).catch((mailError) => {
+        logger.error(`Failed to send receipt email: ${mailError?.message || mailError}`, { meta: { ref: payment.transRef, user_id: payment.user_id } });
+    });
+};
+
 /**
  * The single place an N-Genius order becomes paid. Used by the customer's
  * return page, the gateway webhook, the admin "verify payment" action and
@@ -267,4 +275,5 @@ module.exports = {
   reconcilePendingPayments,
   getInvoice,
   sendInvoiceToMail,
+  sendPaymentReceipt,
 };
