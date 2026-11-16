@@ -14,6 +14,9 @@ const favouriteCategoryStatistics = new mongoose.Schema({
     },
 }, {timestamps: true})
 
+favouriteCategoryStatistics.index({ user_id: 1, maid_id: 1 })
+favouriteCategoryStatistics.index({ createdAt: 1 })
+
 const FavStatics = mongoose.model('favouriteCategoryStatistics', favouriteCategoryStatistics)
 
 module.exports = { FavStatics };

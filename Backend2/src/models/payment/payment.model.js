@@ -64,6 +64,14 @@ paymentSchema.pre('save', function (next) {
 
 
 
+// Subscriber check on every maid profile view, plus checkout/verify flows.
+paymentSchema.index({ user_id: 1, status: 1 });
+paymentSchema.index({ transRef: 1 });
+// Expiry cron: { expiryDate < now, status != 2 }.
+paymentSchema.index({ expiryDate: 1 });
+// Reconcile job: { status: 0, createdAt in range } sorted by createdAt.
+paymentSchema.index({ status: 1, createdAt: 1 });
+
 const paymentModel = mongoose.model('Payment', paymentSchema);
 
 module.exports = { paymentModel };

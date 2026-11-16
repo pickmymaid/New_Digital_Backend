@@ -54,6 +54,9 @@ customerSchema.index(
   { unique: true, partialFilterExpression: { account_id: { $type: 'string' } } }
 );
 
+// Phone-number signup/login lookup.
+customerSchema.index({ phone: 1 });
+
 const CustomerModel = mongoose.model('Customer', customerSchema)
 
 module.exports = { CustomerModel };
