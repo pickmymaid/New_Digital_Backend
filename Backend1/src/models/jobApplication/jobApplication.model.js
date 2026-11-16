@@ -181,6 +181,13 @@ try{
 }
 });
 
+// Public maid listing: { status: 1, ...filters } sorted by date, _id.
+jobapplicationSchema.index({ status: 1, date: -1, _id: -1 });
+// Featured maids: { status: 1, availability: true } sorted by date.
+jobapplicationSchema.index({ status: 1, availability: 1, date: -1 });
+// Profile lookups by reference number (/maid/:ref, dashboard, documents).
+jobapplicationSchema.index({ ref_number: 1 });
+
 const jobApplicationModel = mongoose.model('jobApplications', jobapplicationSchema);
 
 module.exports = { jobApplicationModel };

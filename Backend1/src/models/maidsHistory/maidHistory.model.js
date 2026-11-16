@@ -10,6 +10,9 @@ const MaidHistorySchema = new Schema(
   { timestamps: true }
 );
 
+// History per maid, latest revision first.
+MaidHistorySchema.index({ maid_id: 1, revision: -1 });
+
 const MaidHistory = model("MaidHistory", MaidHistorySchema);
 
 module.exports = { MaidHistory };

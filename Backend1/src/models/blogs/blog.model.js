@@ -45,6 +45,9 @@ const BlogSchema = new mongoose.Schema({
     likes: [String],
 }, {timestamps: true})
 
+BlogSchema.index({ slug: 1 })
+BlogSchema.index({ editedAt: -1 })
+
 const BlogModel = mongoose.model('Blog',BlogSchema)
 
 module.exports = { BlogModel };
