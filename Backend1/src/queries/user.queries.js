@@ -186,7 +186,12 @@ const getAllCustomers = async (
     countPipeline.push({ $count: "total" });
   }
 
-  const facets = { data: pipeline, totalCount: countPipeline };
+  // Data and counts run as separate aggregations, not one $facet: stages inside
+  // $facet can't use indexes, so a $facet here scanned and in-memory sorted the
+  // whole customers collection on every page load instead of using { createdAt: -1 }.
+  let dataStages = pipeline;
+  let countStages = countPipeline;
+  let statusCountStages = null;
 
   // plan_status: "expired" = paid before but the plan has run out,
   // "pending" = started a checkout but never paid, "no_payment" = never started one.
@@ -207,12 +212,12 @@ const getAllCustomers = async (
     };
     if (statusFilters[status]) {
       const statusMatch = { $match: statusFilters[status] };
-      facets.data = [statusMatch, ...pipeline];
-      facets.totalCount = [statusMatch, ...countPipeline];
+      dataStages = [statusMatch, ...pipeline];
+      countStages = [statusMatch, ...countPipeline];
     }
 
     // Per-status totals over every matching customer (all pages, search applied).
-    facets.statusCounts = [
+    statusCountStages = [
       ...countPipeline.slice(0, -1), // same filtering as the total, minus $count
       {
         $group: {
@@ -229,10 +234,13 @@ const getAllCustomers = async (
     ];
   }
 
-  const result = await CustomerModel.aggregate([...baseStages, { $facet: facets }]);
-
-  const data = result[0].data;
-  const count = result[0].totalCount[0]?.total || 0;
+  const run = (stages) => CustomerModel.aggregate([...baseStages, ...stages]);
+  const [data, countResult, statusCounts] = await Promise.all([
+    run(dataStages),
+    run(countStages),
+    statusCountStages ? run(statusCountStages) : [],
+  ]);
+  const count = countResult[0]?.total || 0;
 
   if (!inactiveOnly) {
     return { data: data, count };
@@ -249,7 +257,7 @@ const getAllCustomers = async (
   }
 
   const counts = { total: 0, expired: 0, pending: 0, no_payment: 0 };
-  for (const row of result[0].statusCounts) {
+  for (const row of statusCounts) {
     counts[row._id] = row.total;
     counts.total += row.total;
   }
