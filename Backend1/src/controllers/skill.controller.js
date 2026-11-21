@@ -3,6 +3,7 @@ const {
   createSkillService,
   updateSkillService,
   deleteSkillService,
+  reorderSkillsService,
 } = require("../services/skill.service");
 const { responseHandler } = require("../utils/responseHandler/responseHandler");
 const { HttpError } = require("../utils/httpError");
@@ -71,7 +72,17 @@ const deleteSkillController = async (req, res) => {
   }
 }
 
+const reorderSkillsController = async (req, res) => {
+  try {
+    const skills = await reorderSkillsService(req.body);
+    responseHandler(res, 'OK', { skills }, { message: req.body?.reset === true ? 'Skills sorted A–Z' : 'Skill order saved' });
+  } catch (error) {
+    sendSkillError(res, error);
+  }
+}
+
 module.exports = {
+  reorderSkillsController,
   getSkillsController,
   getAdminSkillsController,
   createSkillController,

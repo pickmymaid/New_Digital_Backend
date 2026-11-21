@@ -1,8 +1,31 @@
 const { SkillModel } = require("../models/skill/skill.model");
 const { jobApplicationModel } = require("../models/jobApplication/jobApplication.model");
 
+// Admin order first; skills never placed (sort_order null) follow, A–Z. Sorted here rather
+// than in Mongo, which would put nulls first. The catalog is a few dozen documents.
+const bySortOrderThenName = (a, b) =>
+  (a.sort_order ?? Infinity) - (b.sort_order ?? Infinity) || a.name.localeCompare(b.name)
+
 const getSkills = async (filter = {}) => {
-  return await SkillModel.find(filter).sort({ name: 1 })
+  const skills = await SkillModel.find(filter)
+  return skills.sort(bySortOrderThenName)
+}
+
+// Next free position, so a new skill lands at the end of the admin's order.
+const nextSortOrder = async () => {
+  const last = await SkillModel.findOne({ sort_order: { $ne: null } }, { sort_order: 1 }).sort({ sort_order: -1 })
+  return last ? last.sort_order + 1 : null
+}
+
+// ids: every skill's _id in the new display order.
+const setSkillOrder = async (ids) => {
+  return await SkillModel.bulkWrite(
+    ids.map((id, index) => ({ updateOne: { filter: { _id: id }, update: { $set: { sort_order: index } } } }))
+  )
+}
+
+const clearSkillOrder = async () => {
+  return await SkillModel.updateMany({}, { $set: { sort_order: null } })
 }
 
 const getSkillById = async (id) => {
@@ -18,7 +41,7 @@ const countSkills = async () => {
 }
 
 const saveSkill = async (body) => {
-  const skill = new SkillModel({ name: body.name, is_active: body.is_active });
+  const skill = new SkillModel({ name: body.name, is_active: body.is_active, sort_order: await nextSortOrder() });
   return await skill.save();
 }
 
@@ -53,6 +76,8 @@ const countMaidsWithSkill = async (name) => {
 }
 
 module.exports = {
+  setSkillOrder,
+  clearSkillOrder,
   getSkills,
   getSkillById,
   getSkillByName,

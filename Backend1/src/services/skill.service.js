@@ -10,6 +10,8 @@ const {
   deleteSkillById,
   renameSkillOnMaids,
   countMaidsWithSkill,
+  setSkillOrder,
+  clearSkillOrder,
 } = require("../queries/skill.queries");
 const { HttpError } = require("../utils/httpError");
 const { isValidMongoId } = require("../utils/isValidMongoId/isValidMongoId");
@@ -122,7 +124,34 @@ const deleteSkillService = async (id) => {
   return { skill, maidsUsing };
 }
 
+// body: { ids: [every skill _id, in display order] } or { reset: true } to go back to A–Z.
+// The full list is required so a stale screen (a skill added/removed meanwhile) is refused
+// rather than leaving the order half-applied.
+const reorderSkillsService = async (body) => {
+  if (body?.reset === true) {
+    await clearSkillOrder();
+    return await listSkillsService({ includeInactive: true });
+  }
+
+  const ids = body?.ids;
+  if (!Array.isArray(ids) || ids.length === 0 || !ids.every((id) => typeof id === 'string' && isValidMongoId(id))) {
+    throw new HttpError('BAD_REQUEST', 'ids must be a list of skill ids.');
+  }
+  if (new Set(ids).size !== ids.length) {
+    throw new HttpError('BAD_REQUEST', 'Each skill can appear only once.');
+  }
+  const current = await getSkills({});
+  const currentIds = new Set(current.map((s) => String(s._id)));
+  if (ids.length !== currentIds.size || !ids.every((id) => currentIds.has(id))) {
+    throw new HttpError('CONFLICT', 'The skills list has changed. Reload the page and try again.');
+  }
+
+  await setSkillOrder(ids);
+  return await listSkillsService({ includeInactive: true });
+}
+
 module.exports = {
+  reorderSkillsService,
   seedDefaultSkillsService,
   listSkillsService,
   createSkillService,

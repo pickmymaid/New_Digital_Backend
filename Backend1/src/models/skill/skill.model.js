@@ -20,6 +20,12 @@ const SkillSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  // Admin-chosen display position (0 = first). Skills without one sort after the
+  // ordered ones, alphabetically.
+  sort_order: {
+    type: Number,
+    default: null,
+  },
 }, { timestamps: true })
 
 SkillSchema.pre('validate', function (next) {

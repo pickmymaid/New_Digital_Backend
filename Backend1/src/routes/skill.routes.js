@@ -5,6 +5,7 @@ const {
   createSkillController,
   updateSkillController,
   deleteSkillController,
+  reorderSkillsController,
 } = require('../controllers/skill.controller');
 const { validateJwtToken } = require('../middleware/jwtValidator');
 const { roleValidator } = require('../middleware/roleValidator');
@@ -143,6 +144,8 @@ const router = express.Router();
 router.get('/', getSkillsController)
 router.get('/admin', validateJwtToken, roleValidator(['SA', 'A']), getAdminSkillsController)
 router.post('/', validateJwtToken, roleValidator(['SA', 'A']), createSkillController)
+// PUT /api/v1/skills/order — { ids: [all skill ids in display order] } or { reset: true } for A–Z.
+router.put('/order', validateJwtToken, roleValidator(['SA', 'A']), reorderSkillsController)
 router.patch('/:id', validateJwtToken, roleValidator(['SA', 'A']), updateSkillController)
 router.delete('/:id', validateJwtToken, roleValidator(['SA', 'A']), deleteSkillController)
 
